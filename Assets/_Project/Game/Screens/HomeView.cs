@@ -1,4 +1,5 @@
 using System;
+using Sudoku.Core.Copy;
 using Sudoku.Core.Persistence;
 using Sudoku.Game.Bootstrap;
 using UnityEngine;
@@ -56,9 +57,15 @@ namespace Sudoku.Game.Screens
 
             var title = Ui.Label("Title", rect, 96, TitleColor);
             Ui.Place(title.rectTransform, new Vector2(0, 520), new Vector2(800, 140));
-            title.text = "Sudoku";
+            title.text = CopyTable.AppTitle;
 
-            view._continue = view.AddButton(rect, "Continue", PrimaryColor, LabelColor);
+            // The one line of voice on this screen. Home is where the game
+            // is allowed a personality; the puzzle is not.
+            var tagline = Ui.Label("Tagline", rect, 26, MutedColor);
+            Ui.Place(tagline.rectTransform, new Vector2(0, 430), new Vector2(880, 50));
+            tagline.text = CopyTable.HomeTagline;
+
+            view._continue = view.AddButton(rect, CopyTable.HomeContinue, PrimaryColor, LabelColor);
             view._continue.onClick.AddListener(() => view.ContinueTapped?.Invoke());
 
             // Which puzzle Continue means, not just that there is one: a
@@ -66,15 +73,15 @@ namespace Sudoku.Game.Screens
             // the ten-second Easy or the stalled Expert.
             view._continueDetail = Ui.Label("ContinueDetail", rect, 24, DetailColor);
 
-            view._newGame = view.AddButton(rect, "New Game", ButtonColor, LabelColor);
+            view._newGame = view.AddButton(rect, CopyTable.HomeNewGame, ButtonColor, LabelColor);
             view._newGame.onClick.AddListener(() => view.NewGameTapped?.Invoke());
 
             // The daily bank and its date seeding are built; the calendar and
             // streak screen are not, so the entry point is present and off.
-            view._daily = view.AddButton(rect, "Daily", ButtonColor, MutedColor);
+            view._daily = view.AddButton(rect, CopyTable.HomeDaily, ButtonColor, MutedColor);
             view._daily.interactable = false;
 
-            view._settings = view.AddButton(rect, "Settings", ButtonColor, LabelColor);
+            view._settings = view.AddButton(rect, CopyTable.HomeSettings, ButtonColor, LabelColor);
             view._settings.onClick.AddListener(() => view.SettingsTapped?.Invoke());
 
             return view;
@@ -90,7 +97,8 @@ namespace Sudoku.Game.Screens
             _continueDetail.gameObject.SetActive(slot != null);
 
             if (slot != null)
-                _continueDetail.text = $"{slot.Tier}  -  {Ui.Clock(slot.ElapsedSeconds)}";
+                _continueDetail.text =
+                    CopyTable.HomeContinueDetail(CopyTable.Tier(slot.Tier), Ui.Clock(slot.ElapsedSeconds));
 
             Layout();
         }

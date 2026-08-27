@@ -624,3 +624,22 @@ stays the authoritative description of what exists.
     is one half-second buzz, which cannot tell a placement from a mistake. That
     plugin is the one piece of this that a headless check cannot compile; it
     only builds on a device.
+
+25. **The copy table lives in `Sudoku.Core`, and there is a sixth reaction
+    bucket.** `Core/Copy/CopyTable.cs` holds every user-facing string in the
+    game, including the purely functional ones, and `ReactionPicker` holds the
+    bucketing and the no-repeat rule. Copy reads as presentation, so the
+    presentation layer is where the spec's folder layout puts it - but the
+    Unity layer deliberately has no test seam, and the one element the spec
+    calls hardest to get right would then have been the one element with no
+    coverage at all. Copy is engine-free data and bucketing is a pure rule, so
+    both sit in Core and are tested there: pool sizes, no line shared between
+    pools, nothing exclamatory, nothing non-ascii, and no line repeating until
+    its pool is spent. `CopyTable.InPuzzle` lists every string visible while a
+    puzzle is on screen so story 72 is a checked assertion rather than a
+    convention. The spec names five outcome buckets; a solve with an ordinary
+    time and one mistake is none of them, so `ReactionBucket.Steady` was added
+    for the common case rather than leaving the card blank. Buckets are ranked
+    mistakes, hints, perfect, fast, slow, steady - what the player did outranks
+    the clock - and a personal best counts as fast at any time on the clock,
+    because fast is relative to the player rather than to the tier.

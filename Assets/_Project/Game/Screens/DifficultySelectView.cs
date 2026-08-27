@@ -1,4 +1,5 @@
 using System;
+using Sudoku.Core.Copy;
 using Sudoku.Core.Difficulty;
 using Sudoku.Core.Persistence;
 using Sudoku.Game.Bootstrap;
@@ -49,7 +50,7 @@ namespace Sudoku.Game.Screens
 
             var title = Ui.Label("Title", rect, 56, TitleColor);
             Ui.Place(title.rectTransform, new Vector2(0, 620), new Vector2(800, 100));
-            title.text = "New Game";
+            title.text = CopyTable.DifficultyTitle;
 
             var tiers = (DifficultyTier[])Enum.GetValues(typeof(DifficultyTier));
             var top = (tiers.Length - 1) / 2f;
@@ -60,7 +61,7 @@ namespace Sudoku.Game.Screens
             for (var i = 0; i < tiers.Length; i++)
             {
                 var tier = tiers[i];
-                var button = Ui.Button($"Tier{tier}", rect, tier.ToString(), 34, ButtonColor, LabelColor);
+                var button = Ui.Button($"Tier{tier}", rect, CopyTable.Tier(tier), 34, ButtonColor, LabelColor);
                 Ui.Place((RectTransform)button.transform,
                     new Vector2(0, (top - i) * 150f), new Vector2(640, 110));
                 button.onClick.AddListener(() => view.TierChosen?.Invoke(tier));
@@ -72,7 +73,7 @@ namespace Sudoku.Game.Screens
                 view._waiting[i] = waiting;
             }
 
-            var back = Ui.Button("Back", rect, "Back", 28, ButtonColor, LabelColor);
+            var back = Ui.Button("Back", rect, CopyTable.DifficultyBack, 28, ButtonColor, LabelColor);
             Ui.Place((RectTransform)back.transform, new Vector2(0, -620), new Vector2(300, 88));
             back.onClick.AddListener(() => view.BackTapped?.Invoke());
 
@@ -84,7 +85,9 @@ namespace Sudoku.Game.Screens
             for (var i = 0; i < _tiers.Length; i++)
             {
                 var slot = Waiting != null ? Waiting(_tiers[i]) : null;
-                _waiting[i].text = slot == null ? "" : $"in progress  {Ui.Clock(slot.ElapsedSeconds)}";
+                _waiting[i].text = slot == null
+                    ? string.Empty
+                    : CopyTable.DifficultyWaiting(Ui.Clock(slot.ElapsedSeconds));
             }
         }
 

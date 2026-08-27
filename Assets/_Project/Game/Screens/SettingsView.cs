@@ -1,4 +1,5 @@
 using System;
+using Sudoku.Core.Copy;
 using Sudoku.Game.Bootstrap;
 using Sudoku.Game.Settings;
 using UnityEngine;
@@ -48,19 +49,26 @@ namespace Sudoku.Game.Screens
 
             var title = Ui.Label("Title", rect, 56, TitleColor);
             Ui.Place(title.rectTransform, new Vector2(0, 700), new Vector2(800, 100));
-            title.text = "Settings";
+            title.text = CopyTable.SettingsTitle;
 
             // The rows are listed in the order the player meets the things they
             // govern: the rules of the puzzle first, then how it is presented,
             // then how it sounds.
-            AddRow(rect, 0, "Mistake limit", "Applies from the next puzzle", settings.MistakeLimit);
-            AddRow(rect, 1, "Highlight mistakes", null, settings.HighlightMistakes);
-            AddRow(rect, 2, "Auto-remove notes", null, settings.AutoRemoveNotes);
-            AddRow(rect, 3, "Show timer", null, settings.TimerVisible);
-            AddRow(rect, 4, "Sound", null, settings.SoundEnabled);
-            AddRow(rect, 5, "Haptics", null, settings.HapticsEnabled);
+            AddRow(rect, 0, CopyTable.SettingsMistakeLimit, CopyTable.SettingsMistakeLimitNote,
+                settings.MistakeLimit);
+            AddRow(rect, 1, CopyTable.SettingsHighlightMistakes, null, settings.HighlightMistakes);
+            AddRow(rect, 2, CopyTable.SettingsAutoRemoveNotes, null, settings.AutoRemoveNotes);
+            AddRow(rect, 3, CopyTable.SettingsShowTimer, null, settings.TimerVisible);
+            AddRow(rect, 4, CopyTable.SettingsSound, null, settings.SoundEnabled);
+            AddRow(rect, 5, CopyTable.SettingsHaptics, null, settings.HapticsEnabled);
 
-            var back = Ui.Button("Back", rect, "Back", 28, ButtonColor, LabelColor);
+            // The screen's one aside. Settings is a place the voice is allowed
+            // to speak, and the reassurance is the joke.
+            var note = Ui.Label("Note", rect, 22, MutedColor);
+            Ui.Place(note.rectTransform, new Vector2(0, -430), new Vector2(900, 40));
+            note.text = CopyTable.SettingsNote;
+
+            var back = Ui.Button("Back", rect, CopyTable.SettingsBack, 28, ButtonColor, LabelColor);
             Ui.Place((RectTransform)back.transform, new Vector2(0, -620), new Vector2(300, 88));
             back.onClick.AddListener(() => view.BackTapped?.Invoke());
 
@@ -106,7 +114,7 @@ namespace Sudoku.Game.Screens
             // here for free.
             preference.Observe(on =>
             {
-                state.text = on ? "On" : "Off";
+                state.text = CopyTable.SettingsToggle(on);
                 fill.color = on ? OnColor : OffColor;
             });
 

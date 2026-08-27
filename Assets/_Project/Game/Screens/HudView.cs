@@ -1,4 +1,5 @@
 using System;
+using Sudoku.Core.Copy;
 using Sudoku.Core.Difficulty;
 using Sudoku.Core.Session;
 using Sudoku.Game.Bootstrap;
@@ -46,7 +47,7 @@ namespace Sudoku.Game.Screens
             // left, Pause and Settings stacked in from the right, and the tier
             // label given whatever is left between them. Nothing overlaps at
             // any width the strip is built at.
-            var back = Ui.Button("Back", rect, "Back", 18, ButtonColor, Label);
+            var back = Ui.Button("Back", rect, CopyTable.HudBack, 18, ButtonColor, Label);
             Ui.Place((RectTransform)back.transform,
                 new Vector2(-width / 2f + Edge + ButtonWidth / 2f, ButtonRow),
                 new Vector2(ButtonWidth, ButtonHeight));
@@ -55,7 +56,7 @@ namespace Sudoku.Game.Screens
             // Settings sits inside the game rather than only on Home, because
             // the moment a player wants the timer gone is the moment it is
             // ticking at them.
-            var settings = Ui.Button("Settings", rect, "Settings", 18, ButtonColor, Label);
+            var settings = Ui.Button("Settings", rect, CopyTable.HudSettings, 18, ButtonColor, Label);
             Ui.Place((RectTransform)settings.transform,
                 new Vector2(width / 2f - Edge - ButtonWidth / 2f, ButtonRow),
                 new Vector2(ButtonWidth, ButtonHeight));
@@ -65,7 +66,7 @@ namespace Sudoku.Game.Screens
             // slot next to Settings rather than the one opposite Back, so a
             // mis-tap costs a screen the player can back out of instead of
             // dropping them out of the puzzle.
-            var pause = Ui.Button("Pause", rect, "Pause", 18, ButtonColor, Label);
+            var pause = Ui.Button("Pause", rect, CopyTable.HudPause, 18, ButtonColor, Label);
             Ui.Place((RectTransform)pause.transform,
                 new Vector2(width / 2f - Edge - ButtonWidth - Gap - ButtonWidth / 2f, ButtonRow),
                 new Vector2(ButtonWidth, ButtonHeight));
@@ -87,35 +88,35 @@ namespace Sudoku.Game.Screens
 
             view._banner = Ui.Label("Banner", rect, 24, Danger);
             Ui.Place(view._banner.rectTransform, new Vector2(0, -46), new Vector2(width, 30));
-            view._banner.text = "";
+            view._banner.text = string.Empty;
 
             return view;
         }
 
         public void Render(GameSession session, DifficultyTier tier, bool timerVisible)
         {
-            _tierLabel.text = tier.ToString();
+            _tierLabel.text = CopyTable.Tier(tier);
 
             var minutes = Mathf.FloorToInt(session.ElapsedSeconds / 60f);
             var seconds = Mathf.FloorToInt(session.ElapsedSeconds % 60f);
-            var clock = timerVisible ? $"{minutes:00}:{seconds:00}" : "--:--";
+            var clock = timerVisible ? $"{minutes:00}:{seconds:00}" : CopyTable.HudTimerHidden;
 
-            _status.text = $"{clock}    Hearts {session.HeartsRemaining}    " +
-                           $"Mistakes {session.MistakeCount}    Left {session.EmptyCellCount}";
+            _status.text = CopyTable.HudStatus(clock, session.HeartsRemaining,
+                session.MistakeCount, session.EmptyCellCount);
             _status.color = session.HeartsRemaining <= 1 ? Danger : Muted;
 
             switch (session.Status)
             {
                 case SessionStatus.Completed:
-                    _banner.text = $"Solved in {minutes:00}:{seconds:00}";
+                    _banner.text = CopyTable.HudSolvedBanner($"{minutes:00}:{seconds:00}");
                     _banner.color = new Color(0.15f, 0.55f, 0.30f);
                     break;
                 case SessionStatus.Failed:
-                    _banner.text = "Out of hearts";
+                    _banner.text = CopyTable.HudFailedBanner;
                     _banner.color = Danger;
                     break;
                 default:
-                    _banner.text = "";
+                    _banner.text = string.Empty;
                     break;
             }
         }

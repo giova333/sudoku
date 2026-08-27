@@ -1,4 +1,5 @@
 using System;
+using Sudoku.Core.Copy;
 using Sudoku.Game.Bootstrap;
 using UnityEngine;
 using UnityEngine.UI;
@@ -23,9 +24,6 @@ namespace Sudoku.Game.Screens
         static readonly Color PrimaryColor = new Color(0.55f, 0.75f, 0.98f);
         static readonly Color WarnColor = new Color(0.97f, 0.80f, 0.55f);
 
-        const string RestartLabel = "Restart";
-        const string ConfirmLabel = "Start over? Tap again";
-
         RectTransform _root;
         Image _restartFill;
         Text _restartText;
@@ -46,21 +44,21 @@ namespace Sudoku.Game.Screens
 
             var title = Ui.Label("Title", rect, 96, TitleColor);
             Ui.Place(title.rectTransform, new Vector2(0, 520), new Vector2(800, 140));
-            title.text = "Paused";
+            title.text = CopyTable.PauseTitle;
 
-            var resume = AddButton(rect, "Resume", 140, PrimaryColor, LabelColor);
+            var resume = AddButton(rect, CopyTable.PauseResume, 140, PrimaryColor, LabelColor);
             resume.onClick.AddListener(() =>
             {
                 view.DisarmRestart();
                 view.ResumeTapped?.Invoke();
             });
 
-            var restart = AddButton(rect, RestartLabel, 0, ButtonColor, LabelColor);
+            var restart = AddButton(rect, CopyTable.PauseRestart, 0, ButtonColor, LabelColor);
             view._restartFill = restart.targetGraphic as Image;
             view._restartText = restart.GetComponentInChildren<Text>();
             restart.onClick.AddListener(view.OnRestartTapped);
 
-            var home = AddButton(rect, "Home", -140, ButtonColor, LabelColor);
+            var home = AddButton(rect, CopyTable.PauseHome, -140, ButtonColor, LabelColor);
             home.onClick.AddListener(() =>
             {
                 view.DisarmRestart();
@@ -69,7 +67,7 @@ namespace Sudoku.Game.Screens
 
             var note = Ui.Label("Note", rect, 24, MutedColor);
             Ui.Place(note.rectTransform, new Vector2(0, -280), new Vector2(800, 40));
-            note.text = "Your puzzle is kept when you leave.";
+            note.text = CopyTable.PauseNote;
 
             return view;
         }
@@ -88,7 +86,7 @@ namespace Sudoku.Game.Screens
             if (!_restartArmed)
             {
                 _restartArmed = true;
-                _restartText.text = ConfirmLabel;
+                _restartText.text = CopyTable.PauseRestartConfirm;
                 _restartFill.color = WarnColor;
                 return;
             }
@@ -100,7 +98,7 @@ namespace Sudoku.Game.Screens
         void DisarmRestart()
         {
             _restartArmed = false;
-            _restartText.text = RestartLabel;
+            _restartText.text = CopyTable.PauseRestart;
             _restartFill.color = ButtonColor;
         }
 

@@ -1,3 +1,4 @@
+using Sudoku.Core.Copy;
 using Sudoku.Game.Analytics;
 using Sudoku.Game.Audio;
 using Sudoku.Game.Board;
@@ -190,9 +191,11 @@ namespace Sudoku.Game.Bootstrap
                 navigator.Back();
             };
             results.HomeTapped += navigator.ResetTo<HomeView>;
-            // results.Reaction: ticket #12 assigns the line the card says about
-            // the solve, drawn from its reaction pools. Left unset here so the
-            // card stays silent rather than repeating one hardcoded joke.
+            // One picker for the life of the app, because "no line twice in a
+            // session" is a fact about what the player has already read, and
+            // only something that outlives a single card can hold it.
+            var reactions = new ReactionPicker();
+            results.Reaction = reactions.Next;
 
             // Losing gets its own screen rather than a banner over the board:
             // it is an outcome, and it is offered the same way out as a win.
