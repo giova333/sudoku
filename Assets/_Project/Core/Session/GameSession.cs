@@ -57,6 +57,85 @@ namespace Sudoku.Core.Session
         }
 
         /// <summary>
+        /// Rebuilds a session from a snapshot instead of replaying the moves
+        /// that produced it. A resume has to be instant, and it must not
+        /// re-emit events the player already lived through.
+        /// </summary>
+        public static GameSession Restore(Puzzle puzzle, RulesConfig rules, SessionSnapshot snapshot) =>
+            Restore(puzzle, rules, ConstraintSet.Classic, snapshot);
+
+        /// <summary>
+        /// Rebuilds a session from a snapshot against an explicit constraint
+        /// set. See <see cref="Restore(Puzzle, RulesConfig, SessionSnapshot)"/>.
+        /// </summary>
+        public static GameSession Restore(Puzzle puzzle, RulesConfig rules, ConstraintSet constraints,
+            SessionSnapshot snapshot)
+        {
+            if (snapshot == null)
+                throw new ArgumentNullException(nameof(snapshot));
+
+            var session = new GameSession(puzzle, rules, constraints);
+            session.Adopt(snapshot);
+            return session;
+        }
+
+        void Adopt(SessionSnapshot snapshot)
+        {
+            CopyCells(snapshot.Values, _values, "values");
+            CopyCells(snapshot.Notes, _notes, "notes");
+
+            _history.Clear();
+            if (snapshot.History != null)
+                foreach (var command in snapshot.History)
+                    if (command != null)
+                        _history.Add(command);
+
+            // A save written by a build with a deeper cap must not hand this
+            // one a stack deeper than the one it promises.
+            while (_history.Count > UndoHistoryLimit)
+                _history.RemoveAt(0);
+
+            ElapsedSeconds = snapshot.ElapsedSeconds;
+            HeartsRemaining = snapshot.HeartsRemaining;
+            HintsRemaining = snapshot.HintsRemaining;
+            HintsUsed = snapshot.HintsUsed;
+            MistakeCount = snapshot.MistakeCount;
+            Status = snapshot.Status;
+            IsPaused = snapshot.IsPaused;
+            _started = snapshot.Started;
+            _emptyCells = CountEmpty();
+        }
+
+        static void CopyCells(int[] source, int[] destination, string what)
+        {
+            if (source == null || source.Length != Board.CellCount)
+                throw new ArgumentException(
+                    $"A snapshot's {what} must hold {Board.CellCount} cells.", "snapshot");
+
+            Array.Copy(source, destination, Board.CellCount);
+        }
+
+        /// <summary>
+        /// A copy of everything that makes this session what it is. The arrays
+        /// and the stack are cloned, so a snapshot handed to a background writer
+        /// is not disturbed by the moves the player makes while it is in flight.
+        /// </summary>
+        public SessionSnapshot Capture() => new SessionSnapshot
+        {
+            Values = (int[])_values.Clone(),
+            Notes = (int[])_notes.Clone(),
+            History = new List<BoardCommand>(_history),
+            ElapsedSeconds = ElapsedSeconds,
+            HeartsRemaining = HeartsRemaining,
+            HintsRemaining = HintsRemaining,
+            HintsUsed = HintsUsed,
+            MistakeCount = MistakeCount,
+            Status = Status,
+            IsPaused = IsPaused,
+            Started = _started
+        };
+
+        /// <summary>
         /// Everything that happens during play. Analytics and, later, meta
         /// systems subscribe here; gameplay never knows who is listening.
         /// </summary>
@@ -148,6 +227,13 @@ namespace Sudoku.Core.Session
 
         /// <summary>True when <paramref name="digit"/> is pencilled into the cell.</summary>
         public bool HasNote(int index, int digit) => (_notes[index] & MaskOf(digit)) != 0;
+
+        /// <summary>
+        /// The raw 9-bit pencil-mark mask for a cell, bit (digit - 1) per digit.
+        /// Exposed as a mask because the renderer and the save layer both want
+        /// all nine answers at once, and asking nine times is wasteful.
+        /// </summary>
+        public int NotesAt(int index) => _notes[index];
 
         /// <summary>
         /// Player intent: put <paramref name="digit"/> into a cell.

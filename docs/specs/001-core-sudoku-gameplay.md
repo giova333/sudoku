@@ -467,3 +467,22 @@ stays the authoritative description of what exists.
     `nunit.framework.dll` before running anything, so that class of divergence
     fails in the normal loop. `tools/check.sh` runs everything that can be
     verified without opening the editor.
+
+13. **Save payloads are JSON, but encoded in `Sudoku.Core` rather than by
+    `UnityEngine.JsonUtility`.** The spec named `SaveSerializer` as the
+    round-trip seam and Unity's built-in serializer as the encoder, and those
+    two pull in opposite directions: Core has `noEngineReferences`, so a
+    serializer built on `JsonUtility` could not live at the seam the tests have
+    to reach. `Core/Persistence/JsonValue.cs` is a small reader/writer covering
+    exactly the payload's grammar; the DTO shape is still array-based, so the
+    file remains ordinary JSON. `Sudoku.Game` keeps only what genuinely needs
+    the engine: the persistent data path, the atomic write, the background
+    thread, and the pause/focus flush.
+
+14. **The save schema ships at version 2, not 1.** Version 1 is the greybox
+    shape - one in-progress puzzle under `slot`, with played-puzzle counts left
+    in `PlayerPrefs`. Version 2 gives every difficulty its own slot plus a daily
+    one and absorbs that tracking. Keeping version 1 as a real, checked-in
+    fixture (`Core.Tests/Fixtures/SavePayloads.cs`) means the migration hook is
+    exercised by a payload the current serializer cannot produce, which is the
+    only way the hook is worth anything.
