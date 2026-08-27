@@ -38,6 +38,27 @@ namespace Sudoku.Game.Screens
         public RectTransform Root => _root;
 
         /// <summary>
+        /// Raised as a session is dealt, before it announces anything, so a
+        /// listener attached here hears the whole play-through from its first
+        /// event. Analytics (#13) is the caller; the presenter neither knows nor
+        /// cares who takes it, which is what keeps analytics out of gameplay.
+        /// </summary>
+        public event Action<GameSession> SessionStarted;
+
+        /// <summary>The difficulty being played. Read by anything that reports on
+        /// the puzzle in hand.</summary>
+        public DifficultyTier Tier => _tier;
+
+        /// <summary>
+        /// Which puzzle is in play, as its bank and index. Null before the first
+        /// deal. The bank reference is bookkeeping rather than truth (a re-bake
+        /// shifts every index), which is exactly the granularity analytics
+        /// wants: it names the puzzle within the content that produced it.
+        /// </summary>
+        public string PuzzleId =>
+            _slot == null ? null : _slot.BankName + "#" + _slot.BankIndex;
+
+        /// <summary>
         /// Whether there is a puzzle worth going back to. Leaving the game
         /// screen suspends the session rather than ending it, so Home can offer
         /// to continue it.
@@ -111,7 +132,9 @@ namespace Sudoku.Game.Screens
                 _session = _slot.ToSession();
             }
 
-            _session.Emitted += OnGameEvent;
+            // Announced before Start, so whoever is listening hears the puzzle
+            // begin rather than joining it a move late.
+            SessionStarted?.Invoke(_session);
             _session.Start();
 
             _selected = -1;
@@ -321,24 +344,6 @@ namespace Sudoku.Game.Screens
             Save();
 
             Render();
-        }
-
-        /// <summary>
-        /// The console stands in for analytics until the real service lands, but
-        /// the event stream it listens to is the shipping one.
-        /// </summary>
-        static void OnGameEvent(GameEvent e)
-        {
-            switch (e.Kind)
-            {
-                case GameEventKind.PuzzleCompleted:
-                    Debug.Log($"[sudoku] completed in {e.ElapsedSeconds:F0}s, " +
-                              $"{e.MistakeCount} mistakes, {e.HintsUsed} hints");
-                    break;
-                case GameEventKind.HeartsDepleted:
-                    Debug.Log("[sudoku] out of hearts");
-                    break;
-            }
         }
     }
 }

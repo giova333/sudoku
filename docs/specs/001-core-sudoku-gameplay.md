@@ -532,3 +532,19 @@ stays the authoritative description of what exists.
     fixture (`Core.Tests/Fixtures/SavePayloads.cs`) means the migration hook is
     exercised by a payload the current serializer cannot produce, which is the
     only way the hook is worth anything.
+
+18. **Analytics is a translator on the event stream, not calls inside
+    gameplay.** `IAnalyticsService` and `AnalyticsReporter` live in
+    `Sudoku.Core` because an event schema is not an engine concern and because
+    the batching and the common parameters are then testable at the same seam
+    the rules are; only the console implementation and the app version,
+    platform and screen names are in `Sudoku.Game`. The reporter subscribes to
+    `GameSession.Emitted`, `Navigator.Navigated` and `GameSettings.Changed`, so
+    there is not one analytics call in the rules, in a screen or in a
+    preference. Two things the spec did not name were needed to make it honest:
+    `GameEvent` gained `FilledCellCount` - progress with the clues excluded, so
+    an abandoned Easy puzzle and an abandoned Master one are comparable - and
+    the common parameters carry the platform alongside the five listed, since a
+    crash-shaped drop-off on one OS is otherwise invisible. Cell placements
+    batch ten to an event and any other event flushes the batch first, which
+    keeps the recorded order the order things happened in.
