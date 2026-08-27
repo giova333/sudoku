@@ -16,6 +16,22 @@ namespace Sudoku.Core.Tests.Session
             return new GameSession(puzzle);
         }
 
+        static Puzzle ClassicPuzzle() => Puzzle.FromStrings(
+            KnownPuzzles.ClassicClues,
+            KnownPuzzles.ClassicSolution);
+
+        /// <summary>Fills every empty cell with the published solution digit.</summary>
+        static void SolveAllButLast(GameSession session, out int lastEmptyIndex)
+        {
+            lastEmptyIndex = -1;
+            for (var i = 0; i < Board.CellCount; i++)
+            {
+                if (session.ValueAt(i) != Board.Empty) continue;
+                if (lastEmptyIndex < 0) { lastEmptyIndex = i; continue; }
+                session.Place(i, KnownPuzzles.ClassicSolution[i] - '0');
+            }
+        }
+
         [Test]
         public void A_new_session_shows_the_puzzles_clues_on_the_board()
         {
@@ -370,6 +386,155 @@ namespace Sudoku.Core.Tests.Session
             session.Place(0, 9); // onto a clue - rejected
 
             Assert.That(session.Undo(), Is.False);
+        }
+
+
+        [Test]
+        public void A_new_session_is_in_progress()
+        {
+            Assert.That(NewClassicSession().Status, Is.EqualTo(SessionStatus.InProgress));
+        }
+
+        [Test]
+        public void Filling_the_last_cell_correctly_completes_the_session()
+        {
+            var session = NewClassicSession();
+            SolveAllButLast(session, out var last);
+            Assert.That(session.Status, Is.EqualTo(SessionStatus.InProgress),
+                "still one cell short");
+
+            session.Place(last, KnownPuzzles.ClassicSolution[last] - '0');
+
+            Assert.That(session.Status, Is.EqualTo(SessionStatus.Completed));
+        }
+
+        [Test]
+        public void A_full_board_with_a_wrong_digit_does_not_complete_the_session()
+        {
+            var rules = RulesConfig.Default;
+            rules.MistakeLimitEnabled = false;
+            var session = new GameSession(ClassicPuzzle(), rules);
+            SolveAllButLast(session, out var last);
+
+            var wrong = KnownPuzzles.ClassicSolution[last] - '0' == 9 ? 1 : 9;
+            session.Place(last, wrong);
+
+            Assert.That(session.Status, Is.EqualTo(SessionStatus.InProgress));
+        }
+
+        [Test]
+        public void Losing_the_last_heart_fails_the_session()
+        {
+            var rules = RulesConfig.Default;
+            rules.Hearts = 2;
+            var session = new GameSession(ClassicPuzzle(), rules);
+
+            session.Place(2, 7); // cell 2 solves to 4
+            Assert.That(session.Status, Is.EqualTo(SessionStatus.InProgress));
+            session.Place(3, 9); // cell 3 solves to 6
+
+            Assert.That(session.HeartsRemaining, Is.Zero);
+            Assert.That(session.Status, Is.EqualTo(SessionStatus.Failed));
+        }
+
+        [Test]
+        public void With_the_mistake_limit_off_the_session_never_fails()
+        {
+            var rules = RulesConfig.Default;
+            rules.MistakeLimitEnabled = false;
+            var session = new GameSession(ClassicPuzzle(), rules);
+
+            session.Place(2, 7);
+            session.Place(3, 9);
+            session.Place(5, 1);
+            session.Place(6, 3);
+
+            Assert.That(session.Status, Is.EqualTo(SessionStatus.InProgress));
+            Assert.That(session.MistakeCount, Is.EqualTo(4), "mistakes are still counted");
+        }
+
+        [Test]
+        public void A_finished_session_accepts_no_further_moves()
+        {
+            var rules = RulesConfig.Default;
+            rules.Hearts = 1;
+            var session = new GameSession(ClassicPuzzle(), rules);
+            session.Place(2, 7); // burns the only heart
+
+            Assert.That(session.Status, Is.EqualTo(SessionStatus.Failed));
+            Assert.That(session.Place(3, 6), Is.False);
+            Assert.That(session.ToggleNote(3, 6), Is.False);
+            Assert.That(session.Erase(2), Is.False);
+            Assert.That(session.Undo(), Is.False);
+        }
+
+
+        [Test]
+        public void A_new_session_has_not_elapsed_any_time()
+        {
+            Assert.That(NewClassicSession().ElapsedSeconds, Is.Zero);
+        }
+
+        [Test]
+        public void Time_accumulates_while_the_player_is_solving()
+        {
+            var session = NewClassicSession();
+
+            session.Tick(1.5f);
+            session.Tick(0.5f);
+
+            Assert.That(session.ElapsedSeconds, Is.EqualTo(2f).Within(0.0001f));
+        }
+
+        [Test]
+        public void Time_does_not_accumulate_while_paused()
+        {
+            var session = NewClassicSession();
+            session.Tick(1f);
+
+            session.Pause();
+            session.Tick(10f);
+
+            Assert.That(session.ElapsedSeconds, Is.EqualTo(1f).Within(0.0001f));
+            Assert.That(session.IsPaused, Is.True);
+        }
+
+        [Test]
+        public void Time_resumes_accumulating_after_a_pause()
+        {
+            var session = NewClassicSession();
+            session.Pause();
+            session.Tick(10f);
+
+            session.Resume();
+            session.Tick(2f);
+
+            Assert.That(session.ElapsedSeconds, Is.EqualTo(2f).Within(0.0001f));
+            Assert.That(session.IsPaused, Is.False);
+        }
+
+        [Test]
+        public void Time_stops_when_the_session_ends()
+        {
+            var rules = RulesConfig.Default;
+            rules.Hearts = 1;
+            var session = new GameSession(ClassicPuzzle(), rules);
+            session.Tick(3f);
+
+            session.Place(2, 7); // burns the only heart
+            session.Tick(10f);
+
+            Assert.That(session.ElapsedSeconds, Is.EqualTo(3f).Within(0.0001f));
+        }
+
+        [Test]
+        public void A_paused_session_accepts_no_moves()
+        {
+            var session = NewClassicSession();
+            session.Pause();
+
+            Assert.That(session.Place(2, 4), Is.False);
+            Assert.That(session.ToggleNote(2, 4), Is.False);
         }
 
     }

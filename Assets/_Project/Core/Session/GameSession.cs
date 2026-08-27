@@ -33,6 +33,8 @@ namespace Sudoku.Core.Session
 
         readonly List<BoardCommand> _history = new List<BoardCommand>();
 
+        int _emptyCells;
+
         public GameSession(Puzzle puzzle) : this(puzzle, RulesConfig.Default) { }
 
         public GameSession(Puzzle puzzle, RulesConfig rules)
@@ -48,7 +50,39 @@ namespace Sudoku.Core.Session
                 _values[i] = puzzle.ClueAt(i);
 
             HeartsRemaining = rules.Hearts;
+            _emptyCells = CountEmpty();
         }
+
+        /// <summary>Where the play-through stands. Only InProgress accepts moves.</summary>
+        public SessionStatus Status { get; private set; } = SessionStatus.InProgress;
+
+        /// <summary>
+        /// Seconds the player has actually spent solving. Accumulated from
+        /// caller-supplied deltas rather than read from a clock, so changing the
+        /// device time cannot alter a recorded time.
+        /// </summary>
+        public float ElapsedSeconds { get; private set; }
+
+        public bool IsPaused { get; private set; }
+
+        /// <summary>True while the timer should run and moves should be accepted.</summary>
+        public bool IsActive => Status == SessionStatus.InProgress && !IsPaused;
+
+        /// <summary>
+        /// Advance the play clock. The caller passes an unscaled frame delta;
+        /// time only accrues while the session is active.
+        /// </summary>
+        public void Tick(float deltaSeconds)
+        {
+            if (!IsActive || deltaSeconds <= 0f)
+                return;
+
+            ElapsedSeconds += deltaSeconds;
+        }
+
+        public void Pause() => IsPaused = true;
+
+        public void Resume() => IsPaused = false;
 
         /// <summary>Wrong placements the player may still make this puzzle.</summary>
         public int HeartsRemaining { get; private set; }
@@ -84,6 +118,8 @@ namespace Sudoku.Core.Session
         /// </summary>
         public bool Place(int index, int digit)
         {
+            if (!IsActive)
+                return false;
             if (_puzzle.IsGiven(index))
                 return false;
             if (digit < 1 || digit > Board.Size)
@@ -117,9 +153,17 @@ namespace Sudoku.Core.Session
             {
                 MistakeCount++;
                 if (_rules.MistakeLimitEnabled && HeartsRemaining > 0)
+                {
                     HeartsRemaining--;
+                    if (HeartsRemaining == 0)
+                    {
+                        Status = SessionStatus.Failed;
+                        return true;
+                    }
+                }
             }
 
+            RefreshCompletion();
             return true;
         }
 
@@ -130,6 +174,8 @@ namespace Sudoku.Core.Session
         /// </summary>
         public bool Erase(int index)
         {
+            if (!IsActive)
+                return false;
             if (_puzzle.IsGiven(index))
                 return false;
             if (_values[index] == Board.Empty && _notes[index] == 0)
@@ -148,6 +194,8 @@ namespace Sudoku.Core.Session
         /// </summary>
         public bool ToggleNote(int index, int digit)
         {
+            if (!IsActive)
+                return false;
             if (_puzzle.IsGiven(index))
                 return false;
             if (digit < 1 || digit > Board.Size)
@@ -167,6 +215,8 @@ namespace Sudoku.Core.Session
         /// </summary>
         public bool Undo()
         {
+            if (!IsActive)
+                return false;
             if (_history.Count == 0)
                 return false;
 
@@ -178,6 +228,35 @@ namespace Sudoku.Core.Session
 
         /// <summary>Actions currently available to undo.</summary>
         public int UndoDepth => _history.Count;
+
+        /// <summary>
+        /// The board is finished only when every cell holds its solution digit.
+        /// A full board containing a wrong digit is not a win.
+        /// </summary>
+        void RefreshCompletion()
+        {
+            _emptyCells = CountEmpty();
+            if (_emptyCells > 0)
+                return;
+
+            for (var i = 0; i < Board.CellCount; i++)
+                if (_values[i] != _puzzle.SolutionAt(i))
+                    return;
+
+            Status = SessionStatus.Completed;
+        }
+
+        int CountEmpty()
+        {
+            var n = 0;
+            for (var i = 0; i < Board.CellCount; i++)
+                if (_values[i] == Board.Empty)
+                    n++;
+            return n;
+        }
+
+        /// <summary>Cells still waiting for a digit.</summary>
+        public int EmptyCellCount => _emptyCells;
 
         void Commit(BoardCommand command)
         {
