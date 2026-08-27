@@ -428,14 +428,20 @@ stays the authoritative description of what exists.
    daily set is five banks, one per tier, kept separate from the main
    progression banks.
 
-6. **`Sudoku.Game` currently references only `Sudoku.Core`, `UnityEngine.UI`
-   and `Unity.TextMeshPro`.** PrimeTween and the Input System are installed but
-   not yet referenced by any assembly, because an unresolved assembly-definition
-   reference breaks the whole Unity compile. They are added back when code
-   actually uses them, in the skin and input steps.
+6. **`Sudoku.Game` references `Sudoku.Core`, `UnityEngine.UI`,
+   `Unity.TextMeshPro`, `Unity.InputSystem` and `Unity.InputSystem.ForUI`.**
+   PrimeTween is installed but still unreferenced, because an unresolved
+   assembly-definition reference breaks the whole Unity compile; it is added
+   when code actually uses it, in the motion step. *(Corrected during step 5:
+   this item previously said the Input System was also unreferenced. It has
+   been referenced since the greybox input loop landed.)*
 
-7. **The bundle identifier is a deliberate placeholder** (`com.changeme.sudoku`)
-   pending a decision. It is permanent once published.
+7. **The bundle identifier is `com.hladunoleksandr.sudoku`** on Android and
+   iOS. It is permanent once published. *(Corrected during step 5: this item
+   previously described the identifier as the placeholder
+   `com.changeme.sudoku`, which was resolved before this branch began. The
+   Standalone identifier is still the URP template default, which is harmless
+   while desktop stays out of scope.)*
 
 8. **The greybox UI is built in code, not authored as prefabs**, and installs
    itself via `RuntimeInitializeOnLoadMethod` so no scene has to be edited. For
