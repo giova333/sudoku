@@ -18,12 +18,22 @@ namespace Sudoku.Game.Screens
         static readonly Color Danger = new Color(0.83f, 0.21f, 0.24f);
         static readonly Color ButtonColor = new Color(0.93f, 0.94f, 0.96f);
 
+        /// <summary>Top-strip geometry. The three buttons are the same size and
+        /// are packed from the strip's edges, so the layout holds at any width
+        /// the strip is built at.</summary>
+        const float ButtonWidth = 116f;
+        const float ButtonHeight = 46f;
+        const float ButtonRow = 34f;
+        const float Edge = 4f;
+        const float Gap = 8f;
+
         Text _tierLabel;
         Text _status;
         Text _banner;
 
         public Action BackTapped;
         public Action PauseTapped;
+        public Action SettingsTapped;
 
         public static HudView Create(Transform parent, float width, float y)
         {
@@ -31,18 +41,46 @@ namespace Sudoku.Game.Screens
             var view = rect.gameObject.AddComponent<HudView>();
             Ui.Place(rect, new Vector2(0, y), new Vector2(width, 120));
 
+            // Three controls share the top strip, so their hit areas are laid
+            // out from the two edges rather than eyeballed: Back alone on the
+            // left, Pause and Settings stacked in from the right, and the tier
+            // label given whatever is left between them. Nothing overlaps at
+            // any width the strip is built at.
             var back = Ui.Button("Back", rect, "Back", 18, ButtonColor, Label);
-            Ui.Place((RectTransform)back.transform, new Vector2(-width / 2f + 62, 34), new Vector2(116, 46));
+            Ui.Place((RectTransform)back.transform,
+                new Vector2(-width / 2f + Edge + ButtonWidth / 2f, ButtonRow),
+                new Vector2(ButtonWidth, ButtonHeight));
             back.onClick.AddListener(() => view.BackTapped?.Invoke());
 
-            // The way to put the puzzle down without leaving it, opposite the
-            // way out so neither is tapped by mistake.
+            // Settings sits inside the game rather than only on Home, because
+            // the moment a player wants the timer gone is the moment it is
+            // ticking at them.
+            var settings = Ui.Button("Settings", rect, "Settings", 18, ButtonColor, Label);
+            Ui.Place((RectTransform)settings.transform,
+                new Vector2(width / 2f - Edge - ButtonWidth / 2f, ButtonRow),
+                new Vector2(ButtonWidth, ButtonHeight));
+            settings.onClick.AddListener(() => view.SettingsTapped?.Invoke());
+
+            // The way to put the puzzle down without leaving it. It takes the
+            // slot next to Settings rather than the one opposite Back, so a
+            // mis-tap costs a screen the player can back out of instead of
+            // dropping them out of the puzzle.
             var pause = Ui.Button("Pause", rect, "Pause", 18, ButtonColor, Label);
-            Ui.Place((RectTransform)pause.transform, new Vector2(width / 2f - 62, 34), new Vector2(116, 46));
+            Ui.Place((RectTransform)pause.transform,
+                new Vector2(width / 2f - Edge - ButtonWidth - Gap - ButtonWidth / 2f, ButtonRow),
+                new Vector2(ButtonWidth, ButtonHeight));
             pause.onClick.AddListener(() => view.PauseTapped?.Invoke());
 
+            // What is left between Back's right edge and Pause's left edge,
+            // which is off-centre in the strip - the buttons are the things
+            // that have to be reachable.
+            var tierLeft = -width / 2f + Edge + ButtonWidth + Gap;
+            var tierRight = width / 2f - Edge - ButtonWidth * 2f - Gap * 2f;
+
             view._tierLabel = Ui.Label("Tier", rect, 22, Muted);
-            Ui.Place(view._tierLabel.rectTransform, new Vector2(0, 34), new Vector2(width - 260, 46));
+            Ui.Place(view._tierLabel.rectTransform,
+                new Vector2((tierLeft + tierRight) / 2f, ButtonRow),
+                new Vector2(tierRight - tierLeft, ButtonHeight));
 
             view._status = Ui.Label("Status", rect, 20, Label);
             Ui.Place(view._status.rectTransform, new Vector2(0, -14), new Vector2(width, 30));

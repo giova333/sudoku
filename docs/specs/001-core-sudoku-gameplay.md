@@ -502,3 +502,14 @@ stays the authoritative description of what exists.
     Restart is the only action here that destroys work, so it is the only one
     that asks twice (user story 58); leaving for Home discards nothing, so it
     does not ask at all.
+
+15. **Preferences are declarations on one settings service, stored in
+    `PlayerPrefs`.** `GameSettings` owns a `Preference<T>` per setting - read,
+    written, and observed through the preference itself - and republishes every
+    change on one `Changed` stream so analytics needs no per-preference wiring.
+    Values round-trip through invariant text, so a new preference (the theme
+    choice) is one declaration rather than a new storage case. They live in
+    `PlayerPrefs` rather than the save file deliberately: a corrupt or migrated
+    save must not cost the player their settings. Settings-as-an-overlay is a
+    `Navigator` push rather than a second layering mechanism - the puzzle stays
+    on the back stack, and `GamePresenter.OnHide` already suspends its clock.

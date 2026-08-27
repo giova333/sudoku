@@ -1,6 +1,7 @@
 using Sudoku.Game.Board;
 using Sudoku.Game.Content;
 using Sudoku.Game.Screens;
+using Sudoku.Game.Settings;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
@@ -49,20 +50,29 @@ namespace Sudoku.Game.Bootstrap
             Ui.Stretch(Ui.Panel("Background", canvas.transform, Background).rectTransform);
 
             var navigator = new Navigator();
+            var settings = new GameSettings(new PlayerPrefsStore());
 
             var home = HomeView.Create(canvas.transform);
             var difficulty = DifficultySelectView.Create(canvas.transform);
-            var game = BuildGameScreen(canvas.transform, navigator);
+            var game = BuildGameScreen(canvas.transform, navigator, settings);
             var pause = PauseView.Create(canvas.transform);
+            var settingsScreen = SettingsView.Create(canvas.transform, settings);
 
             navigator.Register(home);
             navigator.Register(difficulty);
             navigator.Register(game);
             navigator.Register(pause);
+            navigator.Register(settingsScreen);
 
             home.ContinueAvailable = () => game.HasSession;
             home.ContinueTapped += navigator.Go<GamePresenter>;
             home.NewGameTapped += navigator.Go<DifficultySelectView>;
+            home.SettingsTapped += navigator.Go<SettingsView>;
+
+            // Settings is one screen with two ways in. Pushed from the game it
+            // is an overlay in the only sense that matters: the puzzle is still
+            // on the back stack, and leaving it suspended the clock.
+            settingsScreen.BackTapped += navigator.Back;
 
             difficulty.BackTapped += navigator.Back;
             difficulty.TierChosen += tier =>
@@ -91,7 +101,7 @@ namespace Sudoku.Game.Bootstrap
         /// Builds the board, numpad and status strip under one rect, so the
         /// navigator can put the whole puzzle aside without tearing it down.
         /// </summary>
-        GamePresenter BuildGameScreen(Transform parent, Navigator navigator)
+        GamePresenter BuildGameScreen(Transform parent, Navigator navigator, GameSettings settings)
         {
             var root = Ui.Rect("Game", parent);
             Ui.Stretch(root);
@@ -109,9 +119,10 @@ namespace Sudoku.Game.Bootstrap
             var hud = HudView.Create(root, boardSize, 120 + boardSize / 2f + 90f);
             hud.BackTapped += navigator.Back;
             hud.PauseTapped += navigator.Go<PauseView>;
+            hud.SettingsTapped += navigator.Go<SettingsView>;
 
             var presenter = gameObject.AddComponent<GamePresenter>();
-            presenter.Initialise(new PuzzleLibrary(), root, board, numpad, hud);
+            presenter.Initialise(new PuzzleLibrary(), settings, root, board, numpad, hud);
             return presenter;
         }
 
