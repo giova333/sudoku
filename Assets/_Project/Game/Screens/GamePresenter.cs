@@ -1,9 +1,11 @@
 using System;
 using Sudoku.Core.Difficulty;
 using Sudoku.Core.Model;
+using Sudoku.Core.Persistence;
 using Sudoku.Core.Session;
 using Sudoku.Game.Board;
 using Sudoku.Game.Content;
+using Sudoku.Game.Save;
 using Sudoku.Game.Settings;
 using UnityEngine;
 
@@ -17,6 +19,7 @@ namespace Sudoku.Game.Screens
     public sealed class GamePresenter : MonoBehaviour, IScreen
     {
         PuzzleLibrary _library;
+        SaveStore _saves;
         GameSettings _settings;
         RectTransform _root;
         BoardView _board;
@@ -24,6 +27,7 @@ namespace Sudoku.Game.Screens
         HudView _hud;
 
         GameSession _session;
+        SaveSlot _slot;
         Puzzle _puzzle;
         RulesConfig _rules;
         DifficultyTier _tier = DifficultyTier.Easy;
@@ -47,10 +51,11 @@ namespace Sudoku.Game.Screens
         /// </summary>
         bool IsVisible => _root != null && _root.gameObject.activeInHierarchy;
 
-        public void Initialise(PuzzleLibrary library, GameSettings settings, RectTransform root,
-            BoardView board, NumpadView numpad, HudView hud)
+        public void Initialise(PuzzleLibrary library, SaveStore saves, GameSettings settings,
+            RectTransform root, BoardView board, NumpadView numpad, HudView hud)
         {
             _library = library;
+            _saves = saves;
             _settings = settings;
             _root = root;
             _board = board;
@@ -66,9 +71,10 @@ namespace Sudoku.Game.Screens
         }
 
         /// <summary>
-        /// Deals a puzzle of the given tier. The difficulty-select screen calls
-        /// this on the way in; nothing starts a puzzle on launch, because
-        /// launching lands on Home.
+        /// Deals a puzzle of the given tier - or hands back the half-finished
+        /// one already saved under it. The difficulty-select screen calls this
+        /// on the way in; nothing starts a puzzle on launch, because launching
+        /// lands on Home.
         /// </summary>
         public void StartPuzzle(DifficultyTier tier)
         {
@@ -76,15 +82,41 @@ namespace Sudoku.Game.Screens
                 _session.Abandon();
 
             _tier = tier;
-            _puzzle = _library.Next(tier);
 
-            _rules = _settings.BuildRules();
-            _session = new GameSession(_puzzle, _rules);
+            // A half-finished puzzle of this difficulty outranks a fresh one:
+            // starting a quick Easy game must never eat a stalled Expert.
+            var waiting = _saves != null ? _saves.Slot(tier) : null;
+            if (waiting != null && waiting.CanResume)
+            {
+                _slot = waiting;
+
+                // A resumed puzzle keeps the rules it was dealt under: the
+                // mistake limit is a snapshot taken at deal time, and a
+                // settings change must not rewrite a game already being scored.
+                if (_slot.Rules == null) _slot.Rules = _settings.BuildRules();
+                _rules = _slot.Rules;
+
+                // Auto-removal is the one rule that is not a snapshot, so a
+                // resumed puzzle picks up whatever the toggle says now.
+                _rules.AutoRemoveNotes = _settings.AutoRemoveNotes.Value;
+
+                _puzzle = _slot.ToPuzzle();
+                _session = _slot.ToSession();
+            }
+            else
+            {
+                _rules = _settings.BuildRules();
+                _puzzle = _library.Next(tier, out var bankIndex);
+                _slot = SaveSlot.ForTier(tier, PuzzleLibrary.BankName(tier), bankIndex, _puzzle, _rules);
+                _session = _slot.ToSession();
+            }
+
             _session.Emitted += OnGameEvent;
             _session.Start();
 
             _selected = -1;
             _notesMode = false;
+            Save();
             Render();
         }
 
@@ -92,7 +124,7 @@ namespace Sudoku.Game.Screens
         /// Plays the same puzzle again from its clues. What "from the
         /// beginning" means to the board, the clock and every counter is the
         /// session's business, so this only forgets what the player was
-        /// pointing at and redraws.
+        /// pointing at, writes the reset state down and redraws.
         /// </summary>
         public void Restart()
         {
@@ -101,7 +133,20 @@ namespace Sudoku.Game.Screens
             _session.Restart();
             _selected = -1;
             _notesMode = false;
+            Save();
             Render();
+        }
+
+        /// <summary>
+        /// Autosave. It fires after every committed move because a mobile
+        /// process is killed without warning - there is no later to write in.
+        /// </summary>
+        void Save()
+        {
+            if (_saves == null || _slot == null || _session == null) return;
+
+            _slot.Session = _session.Capture();
+            _saves.Put(_slot);
         }
 
         /// <summary>Leaving for another screen suspends the clock; coming back
@@ -113,7 +158,10 @@ namespace Sudoku.Game.Screens
 
         public void OnHide()
         {
-            if (_session != null) _session.Pause();
+            if (_session == null) return;
+
+            _session.Pause();
+            Save();
         }
 
         void Update()
@@ -127,15 +175,48 @@ namespace Sudoku.Game.Screens
         void OnApplicationPause(bool paused)
         {
             if (_session == null) return;
-            if (paused) _session.Pause();
-            else if (IsVisible) _session.Resume();
+
+            if (!paused)
+            {
+                // Only the clock is gated on visibility: a session the player
+                // left behind on Home must not start ticking again just
+                // because the app came back.
+                if (IsVisible) _session.Resume();
+                return;
+            }
+
+            // The save is not gated on anything. The process may never be
+            // scheduled again, so this write cannot wait for a background
+            // thread - and a suspended session sitting behind Home is still
+            // the player's puzzle, so a hidden screen is no reason to skip it.
+            _session.Pause();
+            Save();
+            Flush();
         }
 
         void OnApplicationFocus(bool focused)
         {
             if (_session == null) return;
-            if (focused && IsVisible) _session.Resume();
-            else _session.Pause();
+
+            if (focused)
+            {
+                if (IsVisible) _session.Resume();
+                return;
+            }
+
+            // Unconditional, for the same reason as above.
+            _session.Pause();
+            Save();
+            Flush();
+        }
+
+        /// <summary>
+        /// Puts the autosave on disk before returning. Only for pause and focus
+        /// loss, where there may be no later.
+        /// </summary>
+        void Flush()
+        {
+            if (_saves != null) _saves.Flush();
         }
 
         void OnCellTapped(int index)
@@ -155,6 +236,7 @@ namespace Sudoku.Game.Screens
             if (_notesMode) _session.ToggleNote(_selected, digit);
             else _session.Place(_selected, digit);
 
+            Save();
             Render();
         }
 
@@ -162,6 +244,7 @@ namespace Sudoku.Game.Screens
         {
             if (_selected < 0) return;
             _session.ToggleNote(_selected, digit);
+            Save();
             Render();
         }
 
@@ -187,6 +270,8 @@ namespace Sudoku.Game.Screens
                     TapHint();
                     break;
             }
+
+            Save();
             Render();
         }
 
@@ -230,8 +315,10 @@ namespace Sudoku.Game.Screens
 
             // The session reads auto-removal from the rules object it was dealt
             // on every placement, so writing to that same object is what puts
-            // the change into the puzzle in hand.
+            // the change into the puzzle in hand. It is the slot's rules object
+            // too, so the change is saved with the puzzle rather than lost.
             _rules.AutoRemoveNotes = _settings.AutoRemoveNotes.Value;
+            Save();
 
             Render();
         }

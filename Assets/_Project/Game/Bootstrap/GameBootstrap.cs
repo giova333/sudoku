@@ -1,5 +1,6 @@
 using Sudoku.Game.Board;
 using Sudoku.Game.Content;
+using Sudoku.Game.Save;
 using Sudoku.Game.Screens;
 using Sudoku.Game.Settings;
 using UnityEngine;
@@ -52,9 +53,15 @@ namespace Sudoku.Game.Bootstrap
             var navigator = new Navigator();
             var settings = new GameSettings(new PlayerPrefsStore());
 
+            // One save file behind everything that remembers: the in-progress
+            // puzzle per difficulty, and which puzzles the banks have already
+            // dealt. Reading it is the first thing that happens, so a resume is
+            // waiting before any screen is built.
+            var saves = new SaveStore();
+
             var home = HomeView.Create(canvas.transform);
             var difficulty = DifficultySelectView.Create(canvas.transform);
-            var game = BuildGameScreen(canvas.transform, navigator, settings);
+            var game = BuildGameScreen(canvas.transform, navigator, settings, saves);
             var pause = PauseView.Create(canvas.transform);
             var settingsScreen = SettingsView.Create(canvas.transform, settings);
 
@@ -101,7 +108,8 @@ namespace Sudoku.Game.Bootstrap
         /// Builds the board, numpad and status strip under one rect, so the
         /// navigator can put the whole puzzle aside without tearing it down.
         /// </summary>
-        GamePresenter BuildGameScreen(Transform parent, Navigator navigator, GameSettings settings)
+        GamePresenter BuildGameScreen(Transform parent, Navigator navigator, GameSettings settings,
+            SaveStore saves)
         {
             var root = Ui.Rect("Game", parent);
             Ui.Stretch(root);
@@ -122,7 +130,7 @@ namespace Sudoku.Game.Bootstrap
             hud.SettingsTapped += navigator.Go<SettingsView>;
 
             var presenter = gameObject.AddComponent<GamePresenter>();
-            presenter.Initialise(new PuzzleLibrary(), settings, root, board, numpad, hud);
+            presenter.Initialise(new PuzzleLibrary(saves), saves, settings, root, board, numpad, hud);
             return presenter;
         }
 

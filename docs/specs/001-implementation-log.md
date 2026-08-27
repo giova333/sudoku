@@ -19,7 +19,7 @@ of that spec's build order. Steps 1-4 landed on `main` before this branch.
 | # | Ticket | Blocked by | Status |
 |---|---|---|---|
 | 1 | App shell: screen navigation, Home and Difficulty Select | — | Done — `ticket/01-app-shell` |
-| 2 | Save and resume an in-progress puzzle | — | |
+| 2 | Save and resume an in-progress puzzle | — | Done — `ticket/02-save-resume` |
 | 3 | Two-tap technique hint | — | Done |
 | 4 | Settings screen with persisted preferences | #1 | Done — `ticket/04-settings` |
 | 5 | Pause screen | #1 | Done — `ticket/05-pause` |
