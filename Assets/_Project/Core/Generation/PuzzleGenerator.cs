@@ -1,3 +1,4 @@
+using Sudoku.Core.Difficulty;
 using Sudoku.Core.Model;
 using Sudoku.Core.Solving;
 
@@ -33,6 +34,71 @@ namespace Sudoku.Core.Generation
             var solution = BuildSolution(random, constraints);
             var clues = CarveClues(solution, constraints, random, symmetric);
             return new Puzzle(clues, solution);
+        }
+
+        /// <summary>
+        /// Generates a puzzle that grades to exactly <paramref name="tier"/>,
+        /// or null if it could not within the attempt budget.
+        ///
+        /// Carving is grade-aware: a clue is only removed while the puzzle stays
+        /// at or below the target tier. Rejection sampling alone would be far
+        /// too slow at the easy end, because carving greedily for uniqueness
+        /// lands on a hard puzzle the overwhelming majority of the time.
+        /// </summary>
+        public static Puzzle GenerateForTier(int seed, DifficultyTier tier, DifficultyProfile profile,
+            ConstraintSet constraints, int maxAttempts)
+        {
+            var rule = profile.RuleFor(tier);
+
+            for (var attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                var random = new DeterministicRandom(seed + attempt * 7919);
+                var solution = BuildSolution(random, constraints);
+                var clues = CarveToTier(solution, constraints, random, rule, profile);
+
+                if (PuzzleGrader.Grade(clues, constraints, profile) == tier)
+                    return new Puzzle(clues, solution);
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Removes clues while the puzzle stays proper and never grades harder
+        /// than the target tier.
+        /// </summary>
+        static int[] CarveToTier(int[] solution, ConstraintSet constraints, DeterministicRandom random,
+            TierRule rule, DifficultyProfile profile)
+        {
+            var clues = (int[])solution.Clone();
+
+            var order = new int[Board.CellCount];
+            for (var i = 0; i < Board.CellCount; i++) order[i] = i;
+            random.Shuffle(order);
+
+            foreach (var index in order)
+            {
+                if (clues[index] == Board.Empty)
+                    continue;
+
+                var partner = rule.Symmetric ? Board.CellCount - 1 - index : index;
+
+                var removedIndex = clues[index];
+                var removedPartner = clues[partner];
+                clues[index] = Board.Empty;
+                clues[partner] = Board.Empty;
+
+                var keep = SolutionCounter.Count(clues, constraints, 2) == 1
+                           && PuzzleGrader.Grade(clues, constraints, profile) <= rule.Tier;
+
+                if (!keep)
+                {
+                    clues[index] = removedIndex;
+                    clues[partner] = removedPartner;
+                }
+            }
+
+            return clues;
         }
 
         /// <summary>
