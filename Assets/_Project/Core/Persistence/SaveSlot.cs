@@ -59,6 +59,13 @@ namespace Sudoku.Core.Persistence
         /// <summary>True when there is a puzzle here the player could go back to.</summary>
         public bool CanResume => Session != null && Session.Status == SessionStatus.InProgress;
 
+        /// <summary>
+        /// How long the player has been at this puzzle. A Continue button has
+        /// to quote it before anything has been restored, so it is answered off
+        /// the slot rather than by rebuilding a session to ask.
+        /// </summary>
+        public float ElapsedSeconds => Session != null ? Session.ElapsedSeconds : 0f;
+
         public static string IdFor(DifficultyTier tier) => tier.ToString();
 
         public static string DateKeyFor(DateTime date) =>
