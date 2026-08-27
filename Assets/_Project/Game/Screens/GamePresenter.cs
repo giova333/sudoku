@@ -52,6 +52,31 @@ namespace Sudoku.Game.Screens
         public RectTransform Root => _root;
 
         /// <summary>
+        /// Raised as a session is dealt, before it announces anything, so a
+        /// listener attached here hears the whole play-through from its first
+        /// event. Analytics (#13) is the caller; the presenter neither knows nor
+        /// cares who takes it, which is what keeps analytics out of gameplay.
+        ///
+        /// Every path that builds a session raises it - including the one that
+        /// restores a saved puzzle purely to abandon it, because a drop-off
+        /// nobody hears about is the one event this stream exists for.
+        /// </summary>
+        public event Action<GameSession> SessionStarted;
+
+        /// <summary>The difficulty being played. Read by anything that reports on
+        /// the puzzle in hand.</summary>
+        public DifficultyTier Tier => _tier;
+
+        /// <summary>
+        /// Which puzzle is in play, as its bank and index. Null before the first
+        /// deal. The bank reference is bookkeeping rather than truth (a re-bake
+        /// shifts every index), which is exactly the granularity analytics
+        /// wants: it names the puzzle within the content that produced it.
+        /// </summary>
+        public string PuzzleId =>
+            _slot == null ? null : _slot.BankName + "#" + _slot.BankIndex;
+
+        /// <summary>
         /// Whether the session in hand is still playable. Leaving the game
         /// screen suspends it rather than ending it, so coming back to the same
         /// puzzle costs nothing - but what Home offers to continue is read from
@@ -162,13 +187,17 @@ namespace Sudoku.Game.Screens
         }
 
         /// <summary>
-        /// Takes a session on: listen to it, start it, forget whatever the last
-        /// puzzle had selected, write it down and draw it.
+        /// Takes a session on: listen to it, announce it, start it, forget
+        /// whatever the last puzzle had selected, write it down and draw it.
         /// </summary>
         void Adopt(GameSession session)
         {
             _session = session;
             _session.Emitted += OnGameEvent;
+
+            // Announced before Start, so whoever is listening hears the puzzle
+            // begin rather than joining it a move late.
+            SessionStarted?.Invoke(_session);
 
             // Idempotent, and a restored session carries the fact that it has
             // already started - so a resume is never counted as a second start.
@@ -207,8 +236,22 @@ namespace Sudoku.Game.Screens
                 var waiting = _saves != null ? _saves.Slot(tier) : null;
                 if (waiting == null || !waiting.CanResume) return;
 
+                // The reported tier and puzzle are read off this presenter, so
+                // they have to name the puzzle being dropped rather than
+                // whatever was last played - otherwise a drop-off from Easy is
+                // filed against the Expert game the player wandered off from,
+                // which is worse than not reporting it at all. StartFresh deals
+                // over both a line later, so nothing outlives the announcement.
+                _tier = tier;
+                _slot = waiting;
+
                 var abandoned = waiting.ToSession();
                 abandoned.Emitted += OnGameEvent;
+
+                // Announced like any other session: a puzzle restored only to
+                // be thrown away still has to be heard by whoever is counting
+                // drop-offs, which is the whole point of the event.
+                SessionStarted?.Invoke(abandoned);
                 abandoned.Abandon();
             }
 
@@ -420,9 +463,10 @@ namespace Sudoku.Game.Screens
 
         /// <summary>
         /// The two events that end a run. Everything else on the stream is
-        /// still nobody's business here - the console stands in for analytics
-        /// until that service lands, and the stream it listens to is the
-        /// shipping one.
+        /// nobody's business here: reporting is a listener's job, and #13's
+        /// analytics takes the same stream through <see cref="SessionStarted"/>
+        /// rather than through this handler, so neither side can double-report
+        /// or quietly drop the other's work.
         /// </summary>
         void OnGameEvent(GameEvent e)
         {
@@ -433,11 +477,6 @@ namespace Sudoku.Game.Screens
                     break;
                 case GameEventKind.HeartsDepleted:
                     OnHeartsDepleted(e);
-                    break;
-                case GameEventKind.PuzzleAbandoned:
-                    Debug.Log($"[sudoku] abandoned at {e.ElapsedSeconds:F0}s, " +
-                              $"{Core.Model.Board.CellCount - e.EmptyCellCount} of " +
-                              $"{Core.Model.Board.CellCount} cells filled");
                     break;
             }
         }

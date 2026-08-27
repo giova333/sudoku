@@ -26,6 +26,14 @@ namespace Sudoku.Game.Screens
         public bool CanGoBack => _stack.Count > 1;
 
         /// <summary>
+        /// Raised whenever a different screen comes to the front, whichever way
+        /// it got there. Analytics (#13) subscribes once here rather than once
+        /// per screen, so a screen registered later is reported without being
+        /// wired up - which is the same bargain <see cref="Register"/> makes.
+        /// </summary>
+        public event Action<IScreen> Navigated;
+
+        /// <summary>
         /// Adds a screen and hides it. Registration order does not matter -
         /// nothing is shown until the first <see cref="Go{TScreen}"/>.
         /// </summary>
@@ -102,11 +110,12 @@ namespace Sudoku.Game.Screens
                 $"No screen of type {type.Name} is registered with the navigator.");
         }
 
-        static void Show(IScreen screen)
+        void Show(IScreen screen)
         {
             if (screen == null) return;
             screen.Root.gameObject.SetActive(true);
             screen.OnShow();
+            Navigated?.Invoke(screen);
         }
 
         static void Hide(IScreen screen)

@@ -30,5 +30,5 @@ of that spec's build order. Steps 1-4 landed on `main` before this branch.
 | 10 | Motion and juice | #9 | |
 | 11 | Audio and haptics | #4 | |
 | 12 | Copy voice table | #7 | |
-| 13 | Analytics interface and event wiring | #1, #4 | |
+| 13 | Analytics interface and event wiring | #1, #4 | Done — `ticket/13-analytics` |
 | 14 | Device build on iOS and Android | #9, #11 | |

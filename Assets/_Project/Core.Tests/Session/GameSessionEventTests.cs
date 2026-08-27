@@ -138,6 +138,35 @@ namespace Sudoku.Core.Tests.Session
         }
 
         [Test]
+        public void Abandoning_a_puzzle_reports_how_much_of_the_work_was_the_players()
+        {
+            var session = NewSession();
+            var events = Record(session);
+
+            // Row 0 of the classic puzzle is "530070000" and its solution is
+            // "534678912", so these two cells are empty and these are right.
+            session.Place(2, 4);
+            session.Place(3, 6);
+            session.Abandon();
+
+            var abandoned = First(events, GameEventKind.PuzzleAbandoned);
+            Assert.That(abandoned.FilledCellCount, Is.EqualTo(2),
+                "the clues the puzzle was dealt with are not progress the player made");
+        }
+
+        [Test]
+        public void Taking_a_digit_back_takes_the_progress_back_with_it()
+        {
+            var session = NewSession();
+            var events = Record(session);
+
+            session.Place(2, 4);
+            session.Undo();
+
+            Assert.That(First(events, GameEventKind.UndoUsed).FilledCellCount, Is.Zero);
+        }
+
+        [Test]
         public void A_rejected_move_announces_nothing()
         {
             var session = NewSession();

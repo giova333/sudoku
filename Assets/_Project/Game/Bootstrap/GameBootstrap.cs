@@ -1,3 +1,4 @@
+using Sudoku.Game.Analytics;
 using Sudoku.Game.Board;
 using Sudoku.Game.Content;
 using Sudoku.Game.Save;
@@ -30,6 +31,8 @@ namespace Sudoku.Game.Bootstrap
         static readonly Vector2 DesignResolution = new Vector2(1080, 1920);
 
         static readonly Color Background = new Color(0.96f, 0.96f, 0.94f);
+
+        GameAnalytics _analytics;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Launch()
@@ -203,7 +206,31 @@ namespace Sudoku.Game.Bootstrap
             };
             gameOver.HomeTapped += navigator.ResetTo<HomeView>;
 
+            // Analytics is assembled last and subscribed to streams that were
+            // already there, so nothing above it had to be told it exists. The
+            // console stands in until an SDK is chosen; swapping one in is this
+            // one argument.
+            _analytics = new GameAnalytics(new ConsoleAnalyticsService());
+            _analytics.Observe(settings);
+            _analytics.Observe(navigator);
+            _analytics.Observe(game);
+
             navigator.Go<HomeView>();
+        }
+
+        /// <summary>
+        /// Batched events are held in memory, and a backgrounded mobile process
+        /// may never be scheduled again - so the batch goes out here rather than
+        /// waiting for a next event that never arrives.
+        /// </summary>
+        void OnApplicationPause(bool paused)
+        {
+            if (paused && _analytics != null) _analytics.Flush();
+        }
+
+        void OnApplicationQuit()
+        {
+            if (_analytics != null) _analytics.Flush();
         }
 
         /// <summary>
