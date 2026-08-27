@@ -478,3 +478,21 @@ stays the authoritative description of what exists.
     tested at the `GameSession` seam with no engine, rather than a convention
     the presenter has to keep. `PeekHint`/`UseHint` remain for callers that
     want the one-shot form.
+
+14. **Starting a puzzle over is `GameSession.Restart()`, and pausing is the
+    navigator.** Restart could have been a fresh session dealt over the same
+    `Puzzle` by the pause screen, but only the session knows what "back to the
+    beginning" means for the board, the notes, the undo history, the clock and
+    every counter it owns - and a run that ended out of hearts has to become
+    playable again, which is a status change no caller can make. It is
+    therefore a rule in Core, tested at the `GameSession` seam with no engine.
+    Pause goes the other way: the pause screen is a screen on the back stack
+    rather than a panel inside the game screen, so showing it hides the game
+    screen and the existing `OnShow`/`OnHide` suspension is what stops the
+    clock and takes the board out of reach. There is no second pause mechanism
+    to keep in step with the first. Leaving for Home uses a new
+    `Navigator.ResetTo<TScreen>()` - the player asked for Home, not for two
+    steps backwards through a pause screen over a puzzle they have left.
+    Restart is the only action here that destroys work, so it is the only one
+    that asks twice (user story 58); leaving for Home discards nothing, so it
+    does not ask at all.

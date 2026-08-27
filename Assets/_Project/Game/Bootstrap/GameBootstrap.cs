@@ -53,10 +53,12 @@ namespace Sudoku.Game.Bootstrap
             var home = HomeView.Create(canvas.transform);
             var difficulty = DifficultySelectView.Create(canvas.transform);
             var game = BuildGameScreen(canvas.transform, navigator);
+            var pause = PauseView.Create(canvas.transform);
 
             navigator.Register(home);
             navigator.Register(difficulty);
             navigator.Register(game);
+            navigator.Register(pause);
 
             home.ContinueAvailable = () => game.HasSession;
             home.ContinueTapped += navigator.Go<GamePresenter>;
@@ -68,6 +70,19 @@ namespace Sudoku.Game.Bootstrap
                 game.StartPuzzle(tier);
                 navigator.Replace<GamePresenter>();
             };
+
+            // Showing the pause screen hides the game screen, and that is what
+            // stops the clock and the board taking input - there is no second
+            // pause mechanism to keep in step with the first.
+            pause.ResumeTapped += navigator.Back;
+            pause.RestartTapped += () =>
+            {
+                game.Restart();
+                navigator.Back();
+            };
+            // The session is only suspended, never dropped, so Home finds it
+            // waiting under Continue.
+            pause.HomeTapped += navigator.ResetTo<HomeView>;
 
             navigator.Go<HomeView>();
         }
@@ -93,6 +108,7 @@ namespace Sudoku.Game.Bootstrap
 
             var hud = HudView.Create(root, boardSize, 120 + boardSize / 2f + 90f);
             hud.BackTapped += navigator.Back;
+            hud.PauseTapped += navigator.Go<PauseView>;
 
             var presenter = gameObject.AddComponent<GamePresenter>();
             presenter.Initialise(new PuzzleLibrary(), root, board, numpad, hud);

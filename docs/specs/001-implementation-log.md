@@ -22,7 +22,7 @@ of that spec's build order. Steps 1-4 landed on `main` before this branch.
 | 2 | Save and resume an in-progress puzzle | — | |
 | 3 | Two-tap technique hint | — | Done |
 | 4 | Settings screen with persisted preferences | #1 | |
-| 5 | Pause screen | #1 | |
+| 5 | Pause screen | #1 | Done — `ticket/05-pause` |
 | 6 | Continue, and knowing where you left off | #1, #2 | |
 | 7 | Results card, game over, and the consumable seam | #1, #2 | |
 | 8 | Typography and theming | #4 | |

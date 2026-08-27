@@ -23,6 +23,7 @@ namespace Sudoku.Game.Screens
         Text _banner;
 
         public Action BackTapped;
+        public Action PauseTapped;
 
         public static HudView Create(Transform parent, float width, float y)
         {
@@ -33,6 +34,12 @@ namespace Sudoku.Game.Screens
             var back = Ui.Button("Back", rect, "Back", 18, ButtonColor, Label);
             Ui.Place((RectTransform)back.transform, new Vector2(-width / 2f + 62, 34), new Vector2(116, 46));
             back.onClick.AddListener(() => view.BackTapped?.Invoke());
+
+            // The way to put the puzzle down without leaving it, opposite the
+            // way out so neither is tapped by mistake.
+            var pause = Ui.Button("Pause", rect, "Pause", 18, ButtonColor, Label);
+            Ui.Place((RectTransform)pause.transform, new Vector2(width / 2f - 62, 34), new Vector2(116, 46));
+            pause.onClick.AddListener(() => view.PauseTapped?.Invoke());
 
             view._tierLabel = Ui.Label("Tier", rect, 22, Muted);
             Ui.Place(view._tierLabel.rectTransform, new Vector2(0, 34), new Vector2(width - 260, 46));
