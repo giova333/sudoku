@@ -1,5 +1,6 @@
 using Sudoku.Core.Model;
 using Sudoku.Game.Bootstrap;
+using Sudoku.Game.Theme;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -27,23 +28,10 @@ namespace Sudoku.Game.Board
     /// </summary>
     public sealed class CellView : MonoBehaviour, IPointerClickHandler
     {
-        static readonly Color Background = new Color(0.98f, 0.98f, 0.96f);
-        static readonly Color PeerBackground = new Color(0.90f, 0.93f, 0.97f);
-        static readonly Color SameDigitBackground = new Color(0.80f, 0.87f, 0.96f);
-        static readonly Color SelectedBackground = new Color(0.65f, 0.80f, 0.98f);
-
-        // Amber rather than another blue, so the hint reads as a separate
-        // conversation from ordinary selection and peer scanning.
-        static readonly Color HintReasonBackground = new Color(0.99f, 0.92f, 0.72f);
-        static readonly Color HintTargetBackground = new Color(0.99f, 0.76f, 0.32f);
-
-        static readonly Color GivenText = new Color(0.13f, 0.14f, 0.16f);
-        static readonly Color EnteredText = new Color(0.16f, 0.38f, 0.72f);
-        static readonly Color ErrorText = new Color(0.83f, 0.21f, 0.24f);
-        static readonly Color NoteText = new Color(0.45f, 0.47f, 0.52f);
-
         Image _background;
+        ThemedGraphic _backgroundTheme;
         Text _value;
+        ThemedGraphic _valueTheme;
         readonly Text[] _notes = new Text[10];
         Image _errorUnderline;
 
@@ -61,8 +49,8 @@ namespace Sudoku.Game.Board
             view.Index = index;
 
             view._background = rect.gameObject.AddComponent<Image>();
-            view._background.color = Background;
             view._background.raycastTarget = true;
+            view._backgroundTheme = ThemedGraphic.Attach(view._background, ThemeSlot.CellBackground);
 
             // Nine separate labels in a 3x3 block, rather than one multi-line
             // string: a proportional font would not line the columns up, and
@@ -70,7 +58,8 @@ namespace Sudoku.Game.Board
             var noteSize = size / 3f;
             for (var digit = 1; digit <= 9; digit++)
             {
-                var label = Ui.Label($"Note{digit}", rect, Mathf.RoundToInt(size * 0.22f), NoteText);
+                var label = Ui.Label($"Note{digit}", rect, Mathf.RoundToInt(size * 0.22f),
+                    ThemeSlot.NoteDigit);
                 var col = (digit - 1) % 3;
                 var row = (digit - 1) / 3;
                 Ui.Place(label.rectTransform,
@@ -80,12 +69,13 @@ namespace Sudoku.Game.Board
                 view._notes[digit] = label;
             }
 
-            view._value = Ui.Label("Value", rect, Mathf.RoundToInt(size * 0.60f), GivenText);
+            view._value = Ui.Label("Value", rect, Mathf.RoundToInt(size * 0.60f), ThemeSlot.GivenDigit);
+            view._valueTheme = view._value.GetComponent<ThemedGraphic>();
             Ui.Stretch(view._value.rectTransform);
 
             // A non-colour signal for errors, so the board still works for a
             // player who cannot separate the red from the blue.
-            view._errorUnderline = Ui.Panel("ErrorUnderline", rect, ErrorText);
+            view._errorUnderline = Ui.Panel("ErrorUnderline", rect, ThemeSlot.ErrorDigit);
             var underline = view._errorUnderline.rectTransform;
             underline.anchorMin = new Vector2(0.25f, 0f);
             underline.anchorMax = new Vector2(0.75f, 0f);
@@ -100,12 +90,12 @@ namespace Sudoku.Game.Board
         {
             switch (highlight)
             {
-                case CellHighlight.HintTarget: _background.color = HintTargetBackground; break;
-                case CellHighlight.HintReason: _background.color = HintReasonBackground; break;
-                case CellHighlight.Selected: _background.color = SelectedBackground; break;
-                case CellHighlight.SameDigit: _background.color = SameDigitBackground; break;
-                case CellHighlight.Peer: _background.color = PeerBackground; break;
-                default: _background.color = Background; break;
+                case CellHighlight.HintTarget: _backgroundTheme.Use(ThemeSlot.CellHintTarget); break;
+                case CellHighlight.HintReason: _backgroundTheme.Use(ThemeSlot.CellHintReason); break;
+                case CellHighlight.Selected: _backgroundTheme.Use(ThemeSlot.CellSelected); break;
+                case CellHighlight.SameDigit: _backgroundTheme.Use(ThemeSlot.CellSameDigit); break;
+                case CellHighlight.Peer: _backgroundTheme.Use(ThemeSlot.CellPeer); break;
+                default: _backgroundTheme.Use(ThemeSlot.CellBackground); break;
             }
         }
 
@@ -115,7 +105,8 @@ namespace Sudoku.Game.Board
             _value.text = filled ? digit.ToString() : "";
             for (var d = 1; d <= 9; d++)
                 _notes[d].enabled = !filled;
-            _value.color = isMistake ? ErrorText : isGiven ? GivenText : EnteredText;
+            _valueTheme.Use(isMistake ? ThemeSlot.ErrorDigit
+                : isGiven ? ThemeSlot.GivenDigit : ThemeSlot.EnteredDigit);
             _value.fontStyle = isGiven ? FontStyle.Bold : FontStyle.Normal;
             _errorUnderline.enabled = isMistake;
         }

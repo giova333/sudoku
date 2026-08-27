@@ -2,6 +2,7 @@ using System;
 using Sudoku.Core.Copy;
 using Sudoku.Core.Persistence;
 using Sudoku.Game.Bootstrap;
+using Sudoku.Game.Theme;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -14,13 +15,6 @@ namespace Sudoku.Game.Screens
     /// </summary>
     public sealed class HomeView : MonoBehaviour, IScreen
     {
-        static readonly Color TitleColor = new Color(0.16f, 0.17f, 0.20f);
-        static readonly Color LabelColor = new Color(0.16f, 0.17f, 0.20f);
-        static readonly Color MutedColor = new Color(0.62f, 0.64f, 0.68f);
-        static readonly Color DetailColor = new Color(0.45f, 0.47f, 0.52f);
-        static readonly Color ButtonColor = new Color(0.93f, 0.94f, 0.96f);
-        static readonly Color PrimaryColor = new Color(0.55f, 0.75f, 0.98f);
-
         /// <summary>The column of buttons: where the first one sits and how far
         /// apart they are, so a hidden Continue closes its own gap.</summary>
         const float TopRow = 140f;
@@ -55,33 +49,33 @@ namespace Sudoku.Game.Screens
             view._root = rect;
             Ui.Stretch(rect);
 
-            var title = Ui.Label("Title", rect, 96, TitleColor);
+            var title = Ui.Label("Title", rect, 96, ThemeSlot.Title);
             Ui.Place(title.rectTransform, new Vector2(0, 520), new Vector2(800, 140));
             title.text = CopyTable.AppTitle;
 
             // The one line of voice on this screen. Home is where the game
             // is allowed a personality; the puzzle is not.
-            var tagline = Ui.Label("Tagline", rect, 26, MutedColor);
+            var tagline = Ui.Label("Tagline", rect, 26, ThemeSlot.Muted);
             Ui.Place(tagline.rectTransform, new Vector2(0, 430), new Vector2(880, 50));
             tagline.text = CopyTable.HomeTagline;
 
-            view._continue = view.AddButton(rect, CopyTable.HomeContinue, PrimaryColor, LabelColor);
+            view._continue = view.AddButton(rect, CopyTable.HomeContinue, ThemeSlot.PrimaryFill, ThemeSlot.PrimaryText);
             view._continue.onClick.AddListener(() => view.ContinueTapped?.Invoke());
 
             // Which puzzle Continue means, not just that there is one: a
             // difficulty and a clock are what tell the player whether this is
             // the ten-second Easy or the stalled Expert.
-            view._continueDetail = Ui.Label("ContinueDetail", rect, 24, DetailColor);
+            view._continueDetail = Ui.Label("ContinueDetail", rect, 24, ThemeSlot.Muted);
 
-            view._newGame = view.AddButton(rect, CopyTable.HomeNewGame, ButtonColor, LabelColor);
+            view._newGame = view.AddButton(rect, CopyTable.HomeNewGame, ThemeSlot.ButtonFill, ThemeSlot.ButtonText);
             view._newGame.onClick.AddListener(() => view.NewGameTapped?.Invoke());
 
             // The daily bank and its date seeding are built; the calendar and
             // streak screen are not, so the entry point is present and off.
-            view._daily = view.AddButton(rect, CopyTable.HomeDaily, ButtonColor, MutedColor);
+            view._daily = view.AddButton(rect, CopyTable.HomeDaily, ThemeSlot.ButtonFill, ThemeSlot.Disabled);
             view._daily.interactable = false;
 
-            view._settings = view.AddButton(rect, CopyTable.HomeSettings, ButtonColor, LabelColor);
+            view._settings = view.AddButton(rect, CopyTable.HomeSettings, ThemeSlot.ButtonFill, ThemeSlot.ButtonText);
             view._settings.onClick.AddListener(() => view.SettingsTapped?.Invoke());
 
             return view;
@@ -127,9 +121,9 @@ namespace Sudoku.Game.Screens
             Place(_settings, y - RowStep * 2f);
         }
 
-        Button AddButton(Transform parent, string text, Color fill, Color textColor)
+        Button AddButton(Transform parent, string text, ThemeSlot fill, ThemeSlot textSlot)
         {
-            var button = Ui.Button(text, parent, text, 34, fill, textColor);
+            var button = Ui.Button(text, parent, text, 34, fill, textSlot);
             Place(button, 0);
             return button;
         }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Sudoku.Core.Session;
+using Sudoku.Game.Theme;
 
 namespace Sudoku.Game.Settings
 {
@@ -32,8 +33,7 @@ namespace Sudoku.Game.Settings
             TimerVisible = Declare(new Preference<bool>(store, "timerVisible", true));
             SoundEnabled = Declare(new Preference<bool>(store, "sound", true));
             HapticsEnabled = Declare(new Preference<bool>(store, "haptics", true));
-
-            // The theme choice is declared here by ticket #8, next to the rest.
+            Theme = Declare(new Preference<ThemeChoice>(store, "theme", ThemeChoice.Light));
         }
 
         /// <summary>Whether a mistake costs a heart. Off is a relaxed, consequence-free game.</summary>
@@ -57,6 +57,18 @@ namespace Sudoku.Game.Settings
 
         /// <summary><see cref="SoundEnabled"/>'s independent twin.</summary>
         public Preference<bool> HapticsEnabled { get; }
+
+        /// <summary>
+        /// Which look the game wears. Light by default rather than following the
+        /// device: a player who wants Dark is one tap away, and a game that
+        /// changes its own appearance at sunset without being asked is a
+        /// surprise, not a feature.
+        ///
+        /// Persisted as the enum's name, so a theme added to
+        /// <see cref="ThemeChoice"/> later needs no migration and an unknown
+        /// name left behind by an older build falls back to Light.
+        /// </summary>
+        public Preference<ThemeChoice> Theme { get; }
 
         /// <summary>
         /// Raised for every preference change, whichever one it was. Analytics

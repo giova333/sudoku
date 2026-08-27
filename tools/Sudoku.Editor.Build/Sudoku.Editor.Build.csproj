@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Compile check for the editor tooling, over the same sources
+    Sudoku.Editor.asmdef compiles. It cannot run anything - font atlas
+    generation and the puzzle bake window both need a live editor - but a
+    compile error under Assets/_Project/Editor/ blocks Play mode for the whole
+    project, so catching one in half a second is worth a project file.
+    Never shipped; Unity ignores it (outside Assets/).
+
+    The UnityEngine folder holds the UnityEditor.*Module assemblies too, which
+    is where MenuItem, EditorWindow and AssetDatabase actually live - do not add
+    UnityEditor.dll as well, or every editor type resolves twice.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>Sudoku.Editor</AssemblyName>
+    <RootNamespace>Sudoku.Editor</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>$(NoWarn);CS0618;CS0649;CS1701;CS1702</NoWarn>
+    <UnityManaged>/Applications/Unity/Hub/Editor/6000.5.10f1/Unity.app/Contents/Resources/Scripting/Managed</UnityManaged>
+    <UnityScriptAssemblies>../../Library/ScriptAssemblies</UnityScriptAssemblies>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/_Project/Editor/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Sudoku.Game.Build/Sudoku.Game.Build.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="$(UnityManaged)/UnityEngine/*.dll" Private="false" />
+    <Reference Include="$(UnityScriptAssemblies)/UnityEngine.UI.dll" Private="false" />
+    <Reference Include="$(UnityScriptAssemblies)/Unity.TextMeshPro.dll" Private="false" />
+  </ItemGroup>
+</Project>

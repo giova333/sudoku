@@ -452,7 +452,10 @@ stays the authoritative description of what exists.
 9. **Greybox text uses legacy `UI.Text` with the engine's built-in font.**
    TextMeshPro needs its essential resources imported and real font assets
    generated from Fredoka and Nunito - both editor operations - so TMP arrives
-   with the skin pass. Text only has to be legible at this stage.
+   with the skin pass. Text only has to be legible at this stage. *(Still true
+   after step 8: the atlas generator is written and the theme carries the font
+   references, but neither the import nor the generation can be performed
+   headlessly - see item 27.)*
 
 10. **Banks live under `Assets/_Project/Resources/Banks/`.** Unity requires the
     literal folder name `Resources` for runtime loading, so the bake output path
@@ -643,3 +646,50 @@ stays the authoritative description of what exists.
     mistakes, hints, perfect, fast, slow, steady - what the player did outranks
     the clock - and a personal best counts as fast at any time on the clock,
     because fast is relative to the player rather than to the tier.
+
+26. **The theme is a table of roles, not a palette handed round.** A component
+    names a `ThemeSlot` - `CellSelected`, `PrimaryFill`, `NumpadLabelExhausted` -
+    and a `ThemeDefinition` asset says what that role looks like. `Ui.Panel`,
+    `Ui.Label` and `Ui.Button` take a slot where they used to take a `Color`,
+    and attach a `ThemedGraphic` that remembers it, so a switch is one pass over
+    the live tags rather than a repaint method on every screen. A view that
+    changes state moves the slot (`themed.Use(ThemeSlot.WarnFill)`); it never
+    names a colour. The spec asked for the palette *and* the fonts on one
+    ScriptableObject and got both, but it did not anticipate the slot indirection
+    - the alternative, handing each view a `ThemeDefinition` and having it hold
+    references to its own graphics, is the same feature with a repaint method
+    per screen and a bug the first time someone forgets one.
+
+    Two consequences worth knowing. The service (`Themes`) is static, for the
+    same reason `Ui.ButtonTapped` is: the interface is built by static factories
+    and a colour is needed the frame a graphic is created. And the board's 81
+    cells carry about 970 `ThemedGraphic` tags between them - a component per
+    graphic, none of them with an `Update` - which is paid once at startup and
+    bought instant switching with no registration and nothing to unsubscribe.
+
+27. **TextMeshPro is still not in use, and the font atlases are not committed.**
+    `Sudoku/Theme/Generate Font Assets` bakes Fredoka and Nunito into SDF16
+    static ASCII atlases and assigns them to every shipped theme, and
+    `ThemeDefinition.DisplayFont` / `.NumeralFont` hold the references. None of
+    that can run outside the editor: TextMeshPro rasterises glyphs through the
+    font engine, and it cannot render at all until its essential resources have
+    been imported into the project, which is an asynchronous package import.
+    So the text path is still legacy `UI.Text` and the two font fields are
+    empty. Completing it is: run the menu command twice (once to trigger the
+    import, once to bake), then swap `Ui.Label` from `Text` to
+    `TextMeshProUGUI` and set its font from the theme. Everything else in step
+    8 - the palette, both themes, the settings switch, instant application -
+    is done and does not depend on it.
+
+    The atlases are baked at each variable font's default instance. The spec
+    asks for Fredoka SemiBold/Bold and Nunito Bold/ExtraBold; TextMeshPro's
+    runtime API exposes no way to pin a variable axis, so picking those weights
+    means either static font instances checked in beside the variable ones or a
+    later pass through the Font Asset Creator window.
+
+28. **The editor tooling is compile-checked too** (`tools/check-editor.sh`,
+    wired into `tools/check.sh`). Item 11 gave `Assets/_Project/Game` a headless
+    compile check; `Assets/_Project/Editor` had none, and a compile error there
+    blocks Play mode for the whole project just as surely as one in the game
+    layer. It builds against Unity's own `UnityEditor.*Module` assemblies, which
+    live in the same `Managed/UnityEngine` folder as the runtime ones.

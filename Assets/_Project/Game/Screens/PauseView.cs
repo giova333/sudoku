@@ -1,6 +1,7 @@
 using System;
 using Sudoku.Core.Copy;
 using Sudoku.Game.Bootstrap;
+using Sudoku.Game.Theme;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -17,15 +18,8 @@ namespace Sudoku.Game.Screens
     /// </summary>
     public sealed class PauseView : MonoBehaviour, IScreen
     {
-        static readonly Color TitleColor = new Color(0.16f, 0.17f, 0.20f);
-        static readonly Color LabelColor = new Color(0.16f, 0.17f, 0.20f);
-        static readonly Color MutedColor = new Color(0.45f, 0.47f, 0.52f);
-        static readonly Color ButtonColor = new Color(0.93f, 0.94f, 0.96f);
-        static readonly Color PrimaryColor = new Color(0.55f, 0.75f, 0.98f);
-        static readonly Color WarnColor = new Color(0.97f, 0.80f, 0.55f);
-
         RectTransform _root;
-        Image _restartFill;
+        ThemedGraphic _restartFill;
         Text _restartText;
         bool _restartArmed;
 
@@ -42,30 +36,33 @@ namespace Sudoku.Game.Screens
             view._root = rect;
             Ui.Stretch(rect);
 
-            var title = Ui.Label("Title", rect, 96, TitleColor);
+            var title = Ui.Label("Title", rect, 96, ThemeSlot.Title);
             Ui.Place(title.rectTransform, new Vector2(0, 520), new Vector2(800, 140));
             title.text = CopyTable.PauseTitle;
 
-            var resume = AddButton(rect, CopyTable.PauseResume, 140, PrimaryColor, LabelColor);
+            var resume = AddButton(rect, CopyTable.PauseResume, 140,
+                ThemeSlot.PrimaryFill, ThemeSlot.PrimaryText);
             resume.onClick.AddListener(() =>
             {
                 view.DisarmRestart();
                 view.ResumeTapped?.Invoke();
             });
 
-            var restart = AddButton(rect, CopyTable.PauseRestart, 0, ButtonColor, LabelColor);
-            view._restartFill = restart.targetGraphic as Image;
+            var restart = AddButton(rect, CopyTable.PauseRestart, 0,
+                ThemeSlot.ButtonFill, ThemeSlot.ButtonText);
+            view._restartFill = restart.targetGraphic.GetComponent<ThemedGraphic>();
             view._restartText = restart.GetComponentInChildren<Text>();
             restart.onClick.AddListener(view.OnRestartTapped);
 
-            var home = AddButton(rect, CopyTable.PauseHome, -140, ButtonColor, LabelColor);
+            var home = AddButton(rect, CopyTable.PauseHome, -140,
+                ThemeSlot.ButtonFill, ThemeSlot.ButtonText);
             home.onClick.AddListener(() =>
             {
                 view.DisarmRestart();
                 view.HomeTapped?.Invoke();
             });
 
-            var note = Ui.Label("Note", rect, 24, MutedColor);
+            var note = Ui.Label("Note", rect, 24, ThemeSlot.Muted);
             Ui.Place(note.rectTransform, new Vector2(0, -280), new Vector2(800, 40));
             note.text = CopyTable.PauseNote;
 
@@ -87,7 +84,7 @@ namespace Sudoku.Game.Screens
             {
                 _restartArmed = true;
                 _restartText.text = CopyTable.PauseRestartConfirm;
-                _restartFill.color = WarnColor;
+                _restartFill.Use(ThemeSlot.WarnFill);
                 return;
             }
 
@@ -99,12 +96,12 @@ namespace Sudoku.Game.Screens
         {
             _restartArmed = false;
             _restartText.text = CopyTable.PauseRestart;
-            _restartFill.color = ButtonColor;
+            _restartFill.Use(ThemeSlot.ButtonFill);
         }
 
-        static Button AddButton(Transform parent, string text, float y, Color fill, Color textColor)
+        static Button AddButton(Transform parent, string text, float y, ThemeSlot fill, ThemeSlot textSlot)
         {
-            var button = Ui.Button(text, parent, text, 34, fill, textColor);
+            var button = Ui.Button(text, parent, text, 34, fill, textSlot);
             Ui.Place((RectTransform)button.transform, new Vector2(0, y), new Vector2(640, 110));
             return button;
         }

@@ -22,8 +22,9 @@ namespace Sudoku.Game.Analytics
     /// </summary>
     public sealed class GameAnalytics
     {
-        /// <summary>The key ticket #8's theme preference declares itself under. Named
-        /// rather than referenced so this compiles before that preference exists.</summary>
+        /// <summary>The key the theme preference declares itself under. Named rather
+        /// than referenced so a preference rename cannot silently rename a reported
+        /// parameter the funnels are already sliced by.</summary>
         const string ThemePreferenceKey = "theme";
 
         readonly AnalyticsReporter _reporter;
@@ -36,8 +37,8 @@ namespace Sudoku.Game.Analytics
             _reporter.Context.AppVersion = Application.version;
             _reporter.Context.Platform = Application.platform.ToString();
 
-            // There is one look until #8 declares a theme preference; the moment
-            // it does, the settings subscription below takes this over.
+            // A value before anything has been observed, so an event emitted
+            // between here and Observe(settings) is not reported themeless.
             _reporter.Context.Theme = "light";
         }
 
@@ -93,8 +94,10 @@ namespace Sudoku.Game.Analytics
 
         void AdoptTheme(IPreference preference)
         {
+            // Lower-cased because the schema's parameter values are, and the
+            // preference persists the enum member's own casing.
             if (preference.Key == ThemePreferenceKey)
-                _reporter.Context.Theme = preference.ValueText;
+                _reporter.Context.Theme = preference.ValueText.ToLowerInvariant();
         }
 
         /// <summary>

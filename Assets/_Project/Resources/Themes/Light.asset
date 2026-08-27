@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9758822aa56549e6826712e3ed3e856c, type: 3}
+  m_Name: Light
+  m_EditorClassIdentifier: 
+  _choice: 0
+  _displayFont: {fileID: 0}
+  _numeralFont: {fileID: 0}
+  _screenBackground: {r: 0.96, g: 0.96, b: 0.94, a: 1}
+  _boardLine: {r: 0.35, g: 0.37, b: 0.42, a: 1}
+  _cellBackground: {r: 0.98, g: 0.98, b: 0.96, a: 1}
+  _cellPeer: {r: 0.9, g: 0.93, b: 0.97, a: 1}
+  _cellSameDigit: {r: 0.8, g: 0.87, b: 0.96, a: 1}
+  _cellSelected: {r: 0.65, g: 0.8, b: 0.98, a: 1}
+  _cellHintReason: {r: 0.99, g: 0.92, b: 0.72, a: 1}
+  _cellHintTarget: {r: 0.99, g: 0.76, b: 0.32, a: 1}
+  _givenDigit: {r: 0.13, g: 0.14, b: 0.16, a: 1}
+  _enteredDigit: {r: 0.16, g: 0.38, b: 0.72, a: 1}
+  _errorDigit: {r: 0.83, g: 0.21, b: 0.24, a: 1}
+  _noteDigit: {r: 0.45, g: 0.47, b: 0.52, a: 1}
+  _title: {r: 0.16, g: 0.17, b: 0.2, a: 1}
+  _body: {r: 0.16, g: 0.17, b: 0.2, a: 1}
+  _muted: {r: 0.45, g: 0.47, b: 0.52, a: 1}
+  _disabled: {r: 0.62, g: 0.64, b: 0.68, a: 1}
+  _danger: {r: 0.83, g: 0.21, b: 0.24, a: 1}
+  _celebrate: {r: 0.15, g: 0.55, b: 0.3, a: 1}
+  _buttonFill: {r: 0.93, g: 0.94, b: 0.96, a: 1}
+  _buttonText: {r: 0.16, g: 0.17, b: 0.2, a: 1}
+  _primaryFill: {r: 0.55, g: 0.75, b: 0.98, a: 1}
+  _primaryText: {r: 0.16, g: 0.17, b: 0.2, a: 1}
+  _warnFill: {r: 0.97, g: 0.8, b: 0.55, a: 1}
+  _toggleOn: {r: 0.55, g: 0.75, b: 0.98, a: 1}
+  _toggleOff: {r: 0.87, g: 0.88, b: 0.9, a: 1}
+  _numpadFill: {r: 0.93, g: 0.94, b: 0.96, a: 1}
+  _numpadDisabled: {r: 0.86, g: 0.87, b: 0.89, a: 1}
+  _numpadActive: {r: 0.55, g: 0.75, b: 0.98, a: 1}
+  _numpadLabel: {r: 0.16, g: 0.17, b: 0.2, a: 1}
+  _numpadLabelExhausted: {r: 0.16, g: 0.17, b: 0.2, a: 0.35}
+  _numpadBadge: {r: 0.5, g: 0.52, b: 0.57, a: 1}
+  _numpadHintPending: {r: 0.99, g: 0.76, b: 0.32, a: 1}

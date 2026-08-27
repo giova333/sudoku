@@ -1,4 +1,5 @@
 using System;
+using Sudoku.Game.Theme;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -28,9 +29,16 @@ namespace Sudoku.Game.Bootstrap
         public static Action ButtonTapped;
 
         /// <summary>
-        /// The engine's built-in font. TextMeshPro needs its essential
-        /// resources imported and real font assets generated, which is skin-pass
-        /// work; greybox text only has to be legible.
+        /// The engine's built-in font.
+        ///
+        /// The only typeface reference left in the game, and the one thing
+        /// still hardcoded here: the real faces are Fredoka and Nunito, held by
+        /// <see cref="ThemeDefinition.DisplayFont"/> and
+        /// <see cref="ThemeDefinition.NumeralFont"/>, and reaching them means
+        /// swapping this whole path from <see cref="UnityEngine.UI.Text"/> to
+        /// TextMeshPro. That swap needs the atlases the editor's
+        /// Sudoku/Theme/Generate Font Assets command bakes, so it is not a
+        /// change that can be made and verified without opening the editor.
         /// </summary>
         public static Font Font =>
             _font != null ? _font : (_font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
@@ -43,27 +51,32 @@ namespace Sudoku.Game.Bootstrap
             return rect;
         }
 
-        public static Image Panel(string name, Transform parent, Color color)
+        /// <summary>
+        /// A flat rectangle in one of the theme's colours. Callers name the
+        /// role, never the colour - <see cref="ThemedGraphic"/> is attached
+        /// here so the panel repaints itself when the theme changes.
+        /// </summary>
+        public static Image Panel(string name, Transform parent, ThemeSlot slot)
         {
             var rect = Rect(name, parent);
             var image = rect.gameObject.AddComponent<Image>();
-            image.color = color;
             image.raycastTarget = false;
+            ThemedGraphic.Attach(image, slot);
             return image;
         }
 
-        public static Text Label(string name, Transform parent, int size, Color color,
+        public static Text Label(string name, Transform parent, int size, ThemeSlot slot,
             TextAnchor anchor = TextAnchor.MiddleCenter)
         {
             var rect = Rect(name, parent);
             var text = rect.gameObject.AddComponent<Text>();
             text.font = Font;
             text.fontSize = size;
-            text.color = color;
             text.alignment = anchor;
             text.raycastTarget = false;
             text.horizontalOverflow = HorizontalWrapMode.Overflow;
             text.verticalOverflow = VerticalWrapMode.Overflow;
+            ThemedGraphic.Attach(text, slot);
             return text;
         }
 
@@ -74,12 +87,12 @@ namespace Sudoku.Game.Bootstrap
         /// with <see cref="Place"/>.
         /// </summary>
         public static Button Button(string name, Transform parent, string text, int size,
-            Color fill, Color textColor)
+            ThemeSlot fill, ThemeSlot textSlot)
         {
             var image = Panel(name, parent, fill);
             image.raycastTarget = true;
 
-            var label = Label("Label", image.rectTransform, size, textColor);
+            var label = Label("Label", image.rectTransform, size, textSlot);
             Stretch(label.rectTransform);
             label.text = text;
 

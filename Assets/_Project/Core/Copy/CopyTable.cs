@@ -150,6 +150,12 @@ namespace Sudoku.Core.Copy
         public const string SettingsSound = "Sound";
         public const string SettingsHaptics = "Haptics";
 
+        /// <summary>The theme row. It names the look it turns on rather than the
+        /// setting it is - "Dark theme: On" is what the player is asking for,
+        /// where "Theme: Dark" would need a second word to say which way the
+        /// switch goes.</summary>
+        public const string SettingsDarkTheme = "Dark theme";
+
         public const string SettingsNote = "None of these are secretly scored.";
 
         public static string SettingsToggle(bool on) => on ? "On" : "Off";

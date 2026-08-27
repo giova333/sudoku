@@ -7,6 +7,7 @@ using Sudoku.Game.Save;
 using Sudoku.Game.Screens;
 using Sudoku.Game.Session;
 using Sudoku.Game.Settings;
+using Sudoku.Game.Theme;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
@@ -32,8 +33,6 @@ namespace Sudoku.Game.Bootstrap
         /// <summary>Reference portrait resolution the layout is designed against.</summary>
         static readonly Vector2 DesignResolution = new Vector2(1080, 1920);
 
-        static readonly Color Background = new Color(0.96f, 0.96f, 0.94f);
-
         GameAnalytics _analytics;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -53,11 +52,24 @@ namespace Sudoku.Game.Bootstrap
 
             EnsureEventSystem();
 
+            var settings = new GameSettings(new PlayerPrefsStore());
+
+            // The palette comes first, before a single graphic exists: every one
+            // of them asks the theme what colour it is on the frame it is built,
+            // and Observe fires now, so the saved theme is already in force
+            // rather than being corrected a frame later. It fires again on every
+            // change, which is the whole of "instant, no restart" - flipping the
+            // preference from the settings screen repaints every screen,
+            // including the ones the navigator currently has deactivated.
+            //
+            // Nothing below this line names a colour.
+            Themes.Install();
+            settings.Theme.Observe(Themes.Use);
+
             var canvas = BuildCanvas();
-            Ui.Stretch(Ui.Panel("Background", canvas.transform, Background).rectTransform);
+            Ui.Stretch(Ui.Panel("Background", canvas.transform, ThemeSlot.ScreenBackground).rectTransform);
 
             var navigator = new Navigator();
-            var settings = new GameSettings(new PlayerPrefsStore());
 
             // One save file behind everything that remembers: the in-progress
             // puzzle per difficulty, and which puzzles the banks have already
