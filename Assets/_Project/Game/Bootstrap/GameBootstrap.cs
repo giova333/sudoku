@@ -3,6 +3,7 @@ using Sudoku.Game.Analytics;
 using Sudoku.Game.Audio;
 using Sudoku.Game.Board;
 using Sudoku.Game.Content;
+using Sudoku.Game.Motion;
 using Sudoku.Game.Save;
 using Sudoku.Game.Screens;
 using Sudoku.Game.Session;
@@ -66,6 +67,14 @@ namespace Sudoku.Game.Bootstrap
             Themes.Install();
             settings.Theme.Observe(Themes.Use);
 
+            // Motion is installed alongside the palette and for the same
+            // reason: the press animator is a static the skin reaches for the
+            // first time a button is built, so it has to be in place before one
+            // exists. Observing the preference into Motions is the whole of
+            // honouring Reduce Motion - one boolean, read everywhere.
+            Motions.Install();
+            settings.ReduceMotion.Observe(reduced => Motions.Reduced = reduced);
+
             var canvas = BuildCanvas();
 
             // The ground goes edge to edge, behind the notch and under the home
@@ -75,6 +84,12 @@ namespace Sudoku.Game.Bootstrap
             var screens = SafeAreaFitter.Fit(canvas);
 
             var navigator = new Navigator();
+
+            // Every screen change is an entrance, wired once here rather than
+            // once per screen: the navigator already says which screen came to
+            // the front, and a screen registered later gets the transition
+            // without being told it exists - the same bargain Register makes.
+            navigator.Navigated += screen => Motions.Enter(screen.Root);
 
             // One save file behind everything that remembers: the in-progress
             // puzzle per difficulty, and which puzzles the banks have already
@@ -187,7 +202,10 @@ namespace Sudoku.Game.Bootstrap
             // what the empty stages are reserved for.
             var completion = new CompletionFlow
             {
-                // BoardCascade: ticket #10 assigns the completion animation.
+                // The sweep across the finished board, which calls the flow on
+                // when it has crossed.
+                BoardCascade = game.Cascade,
+
                 // Interstitial: RESERVED for an interstitial ad. Deliberately
                 // left unassigned - there is no ad SDK in this milestone, and
                 // the seam has to exist before there is something to put in it.

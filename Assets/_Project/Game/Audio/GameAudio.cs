@@ -1,5 +1,6 @@
 using System;
 using Sudoku.Core.Session;
+using Sudoku.Game.Board;
 
 namespace Sudoku.Game.Audio
 {
@@ -18,7 +19,7 @@ namespace Sudoku.Game.Audio
         readonly IAudioService _audio;
 
         /// <summary>Which boxes were already finished, so completion is heard once and not on every later move.</summary>
-        readonly bool[] _boxComplete = new bool[9];
+        readonly bool[] _boxComplete = new bool[BoardBoxes.Count];
 
         GameSession _session;
         int _hearts;
@@ -111,36 +112,14 @@ namespace Sudoku.Game.Audio
         /// </summary>
         void RefreshBoxes(bool announce)
         {
-            for (var box = 0; box < 9; box++)
+            for (var box = 0; box < BoardBoxes.Count; box++)
             {
-                var complete = IsBoxComplete(box);
+                var complete = BoardBoxes.IsComplete(_session, box);
                 if (complete && !_boxComplete[box] && announce)
                     _audio.Play(Sfx.BoxComplete);
 
                 _boxComplete[box] = complete;
             }
-        }
-
-        /// <summary>
-        /// Full and right. A box filled with a wrong digit in it has not been
-        /// solved, and saying so would be worse than saying nothing.
-        /// </summary>
-        bool IsBoxComplete(int box)
-        {
-            var firstRow = box / 3 * 3;
-            var firstColumn = box % 3 * 3;
-
-            for (var row = 0; row < 3; row++)
-            {
-                for (var column = 0; column < 3; column++)
-                {
-                    var index = (firstRow + row) * Core.Model.Board.Size + firstColumn + column;
-                    if (_session.ValueAt(index) == Core.Model.Board.Empty) return false;
-                    if (_session.IsMistakeAt(index)) return false;
-                }
-            }
-
-            return true;
         }
     }
 }

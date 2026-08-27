@@ -23,8 +23,12 @@ namespace Sudoku.Game.Screens
     public sealed class SettingsView : MonoBehaviour, IScreen
     {
         /// <summary>Vertical centre of the first row; each one below sits <see cref="RowStep"/> lower.</summary>
-        const float FirstRow = 480f;
-        const float RowStep = 150f;
+        const float FirstRow = 540f;
+
+        /// <summary>The step between rows. Tighter than a row is tall by only a
+        /// few units: eight rows have to fit between the title and the closing
+        /// aside, and the list is more likely to grow again than to shrink.</summary>
+        const float RowStep = 132f;
 
         RectTransform _root;
 
@@ -53,13 +57,14 @@ namespace Sudoku.Game.Screens
             AddRow(rect, 1, CopyTable.SettingsHighlightMistakes, null, settings.HighlightMistakes);
             AddRow(rect, 2, CopyTable.SettingsAutoRemoveNotes, null, settings.AutoRemoveNotes);
             AddRow(rect, 3, CopyTable.SettingsShowTimer, null, settings.TimerVisible);
-            AddRow(rect, 4, CopyTable.SettingsSound, null, settings.SoundEnabled);
-            AddRow(rect, 5, CopyTable.SettingsHaptics, null, settings.HapticsEnabled);
+            AddRow(rect, 4, CopyTable.SettingsReduceMotion, null, settings.ReduceMotion);
+            AddRow(rect, 5, CopyTable.SettingsSound, null, settings.SoundEnabled);
+            AddRow(rect, 6, CopyTable.SettingsHaptics, null, settings.HapticsEnabled);
 
             // The theme sits last because it is the one row that changes the
             // screen it is on: the player sees the answer to what they just
             // asked for without leaving.
-            AddRow(rect, 6, CopyTable.SettingsDarkTheme, null, settings.Theme);
+            AddRow(rect, 7, CopyTable.SettingsDarkTheme, null, settings.Theme);
 
             // The screen's one aside. Settings is a place the voice is allowed
             // to speak, and the reassurance is the joke. It sits below the last

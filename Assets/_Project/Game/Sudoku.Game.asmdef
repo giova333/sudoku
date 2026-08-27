@@ -6,7 +6,8 @@
         "UnityEngine.UI",
         "Unity.TextMeshPro",
         "Unity.InputSystem",
-        "Unity.InputSystem.ForUI"
+        "Unity.InputSystem.ForUI",
+        "PrimeTween.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

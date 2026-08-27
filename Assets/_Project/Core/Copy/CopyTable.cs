@@ -147,6 +147,13 @@ namespace Sudoku.Core.Copy
         public const string SettingsHighlightMistakes = "Highlight mistakes";
         public const string SettingsAutoRemoveNotes = "Auto-remove notes";
         public const string SettingsShowTimer = "Show timer";
+
+        /// <summary>The accessibility row. It names what turning it on does
+        /// rather than what it is called on any one platform, because the
+        /// device it is following may call it something else - or, on iOS, may
+        /// not be answering at all.</summary>
+        public const string SettingsReduceMotion = "Reduce motion";
+
         public const string SettingsSound = "Sound";
         public const string SettingsHaptics = "Haptics";
 
