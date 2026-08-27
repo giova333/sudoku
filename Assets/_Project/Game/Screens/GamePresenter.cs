@@ -13,9 +13,10 @@ namespace Sudoku.Game.Screens
     /// back into pixels. It holds no rules of its own - every decision about
     /// what a move means lives in Sudoku.Core.
     /// </summary>
-    public sealed class GamePresenter : MonoBehaviour
+    public sealed class GamePresenter : MonoBehaviour, IScreen
     {
         PuzzleLibrary _library;
+        RectTransform _root;
         BoardView _board;
         NumpadView _numpad;
         HudView _hud;
@@ -31,9 +32,27 @@ namespace Sudoku.Game.Screens
         bool _showMistakes = true;
         bool _timerVisible = true;
 
-        public void Initialise(PuzzleLibrary library, BoardView board, NumpadView numpad, HudView hud)
+        public RectTransform Root => _root;
+
+        /// <summary>
+        /// Whether there is a puzzle worth going back to. Leaving the game
+        /// screen suspends the session rather than ending it, so Home can offer
+        /// to continue it.
+        /// </summary>
+        public bool HasSession => _session != null && _session.Status == SessionStatus.InProgress;
+
+        /// <summary>
+        /// Whether the game screen is the one on show. The clock must not run -
+        /// and returning to the app must not restart it - on a session the
+        /// player has left behind on Home.
+        /// </summary>
+        bool IsVisible => _root != null && _root.gameObject.activeInHierarchy;
+
+        public void Initialise(PuzzleLibrary library, RectTransform root, BoardView board,
+            NumpadView numpad, HudView hud)
         {
             _library = library;
+            _root = root;
             _board = board;
             _numpad = numpad;
             _hud = hud;
@@ -42,12 +61,14 @@ namespace Sudoku.Game.Screens
             _numpad.DigitTapped += OnDigitTapped;
             _numpad.DigitHeld += OnDigitHeld;
             _numpad.ActionTapped += OnAction;
-            _hud.TierChosen += StartPuzzle;
-
-            StartPuzzle(_tier);
         }
 
-        void StartPuzzle(DifficultyTier tier)
+        /// <summary>
+        /// Deals a puzzle of the given tier. The difficulty-select screen calls
+        /// this on the way in; nothing starts a puzzle on launch, because
+        /// launching lands on Home.
+        /// </summary>
+        public void StartPuzzle(DifficultyTier tier)
         {
             if (_session != null && _session.Status == SessionStatus.InProgress)
                 _session.Abandon();
@@ -64,9 +85,21 @@ namespace Sudoku.Game.Screens
             Render();
         }
 
+        /// <summary>Leaving for another screen suspends the clock; coming back
+        /// restarts it on the same session.</summary>
+        public void OnShow()
+        {
+            if (_session != null) _session.Resume();
+        }
+
+        public void OnHide()
+        {
+            if (_session != null) _session.Pause();
+        }
+
         void Update()
         {
-            if (_session == null) return;
+            if (_session == null || !IsVisible) return;
 
             _session.Tick(Time.unscaledDeltaTime);
             _hud.Render(_session, _tier, _timerVisible);
@@ -76,13 +109,13 @@ namespace Sudoku.Game.Screens
         {
             if (_session == null) return;
             if (paused) _session.Pause();
-            else _session.Resume();
+            else if (IsVisible) _session.Resume();
         }
 
         void OnApplicationFocus(bool focused)
         {
             if (_session == null) return;
-            if (focused) _session.Resume();
+            if (focused && IsVisible) _session.Resume();
             else _session.Pause();
         }
 

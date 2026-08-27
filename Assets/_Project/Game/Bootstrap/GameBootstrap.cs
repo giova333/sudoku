@@ -9,9 +9,14 @@ using UnityEngine.UI;
 namespace Sudoku.Game.Bootstrap
 {
     /// <summary>
-    /// The composition root. Builds the canvas and the greybox screen in code
+    /// The composition root. Builds the canvas and the greybox screens in code
     /// and wires the object graph by hand - no DI container until the meta
     /// layer's wiring actually hurts.
+    ///
+    /// It is also the only place that knows which screen leads to which: every
+    /// screen announces what the player asked for and the root routes it
+    /// through the <see cref="Navigator"/>, so a new screen is registered here
+    /// rather than wired into the screens around it.
     ///
     /// It installs itself so no scene has to be authored to run the game, which
     /// keeps the greybox free of binary scene edits.
@@ -43,22 +48,55 @@ namespace Sudoku.Game.Bootstrap
             var canvas = BuildCanvas();
             Ui.Stretch(Ui.Panel("Background", canvas.transform, Background).rectTransform);
 
+            var navigator = new Navigator();
+
+            var home = HomeView.Create(canvas.transform);
+            var difficulty = DifficultySelectView.Create(canvas.transform);
+            var game = BuildGameScreen(canvas.transform, navigator);
+
+            navigator.Register(home);
+            navigator.Register(difficulty);
+            navigator.Register(game);
+
+            home.ContinueAvailable = () => game.HasSession;
+            home.ContinueTapped += navigator.Go<GamePresenter>;
+            home.NewGameTapped += navigator.Go<DifficultySelectView>;
+
+            difficulty.BackTapped += navigator.Back;
+            difficulty.TierChosen += tier =>
+            {
+                game.StartPuzzle(tier);
+                navigator.Replace<GamePresenter>();
+            };
+
+            navigator.Go<HomeView>();
+        }
+
+        /// <summary>
+        /// Builds the board, numpad and status strip under one rect, so the
+        /// navigator can put the whole puzzle aside without tearing it down.
+        /// </summary>
+        GamePresenter BuildGameScreen(Transform parent, Navigator navigator)
+        {
+            var root = Ui.Rect("Game", parent);
+            Ui.Stretch(root);
+
             // The board takes the full design width minus a margin; the numpad
             // and status strip sit above and below it.
             const float margin = 40f;
             var boardSize = DesignResolution.x - margin * 2f;
 
-            var board = BoardView.Create(canvas.transform, boardSize);
+            var board = BoardView.Create(root, boardSize);
             Ui.Place(board.GetComponent<RectTransform>(), new Vector2(0, 120), new Vector2(boardSize, boardSize));
 
-            var numpad = NumpadView.Create(canvas.transform, DesignResolution.x - margin * 2f,
-                120 - boardSize / 2f - 130f);
+            var numpad = NumpadView.Create(root, boardSize, 120 - boardSize / 2f - 130f);
 
-            var hud = HudView.Create(canvas.transform, DesignResolution.x - margin * 2f,
-                120 + boardSize / 2f + 90f);
+            var hud = HudView.Create(root, boardSize, 120 + boardSize / 2f + 90f);
+            hud.BackTapped += navigator.Back;
 
             var presenter = gameObject.AddComponent<GamePresenter>();
-            presenter.Initialise(new PuzzleLibrary(), board, numpad, hud);
+            presenter.Initialise(new PuzzleLibrary(), root, board, numpad, hud);
+            return presenter;
         }
 
         Canvas BuildCanvas()
