@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9758822aa56549e6826712e3ed3e856c, type: 3}
+  m_Name: Dark
+  m_EditorClassIdentifier: 
+  _choice: 1
+  _displayFont: {fileID: 0}
+  _numeralFont: {fileID: 0}
+  _screenBackground: {r: 0.118, g: 0.114, b: 0.149, a: 1}
+  _boardLine: {r: 0.031, g: 0.027, b: 0.047, a: 1}
+  _cardSurface: {r: 0.169, g: 0.165, b: 0.212, a: 1}
+  _shadow: {r: 0.031, g: 0.027, b: 0.047, a: 1}
+  _outline: {r: 0.031, g: 0.027, b: 0.047, a: 1}
+  _cellBackground: {r: 0.169, g: 0.165, b: 0.212, a: 1}
+  _cellPeer: {r: 0.204, g: 0.196, b: 0.278, a: 1}
+  _cellSameDigit: {r: 0.169, g: 0.29, b: 0.431, a: 1}
+  _cellSelected: {r: 0.173, g: 0.482, b: 0.839, a: 1}
+  _cellHintReason: {r: 0.29, g: 0.235, b: 0.086, a: 1}
+  _cellHintTarget: {r: 0.788, g: 0.541, b: 0.102, a: 1}
+  _givenDigit: {r: 0.949, g: 0.937, b: 0.902, a: 1}
+  _enteredDigit: {r: 0.498, g: 0.769, b: 1, a: 1}
+  _errorDigit: {r: 1, g: 0.42, b: 0.42, a: 1}
+  _noteDigit: {r: 0.557, g: 0.541, b: 0.651, a: 1}
+  _title: {r: 0.961, g: 0.949, b: 0.918, a: 1}
+  _body: {r: 0.91, g: 0.894, b: 0.855, a: 1}
+  _muted: {r: 0.604, g: 0.588, b: 0.682, a: 1}
+  _disabled: {r: 0.361, g: 0.345, b: 0.447, a: 1}
+  _danger: {r: 1, g: 0.42, b: 0.42, a: 1}
+  _celebrate: {r: 0.263, g: 0.839, b: 0.541, a: 1}
+  _buttonFill: {r: 0.169, g: 0.165, b: 0.212, a: 1}
+  _buttonText: {r: 0.949, g: 0.937, b: 0.902, a: 1}
+  _primaryFill: {r: 0.169, g: 0.714, b: 0.451, a: 1}
+  _primaryText: {r: 0.043, g: 0.039, b: 0.063, a: 1}
+  _warnFill: {r: 0.839, g: 0.294, b: 0.373, a: 1}
+  _toggleOn: {r: 0.169, g: 0.714, b: 0.451, a: 1}
+  _toggleOff: {r: 0.22, g: 0.212, b: 0.275, a: 1}
+  _numpadFill: {r: 0.169, g: 0.165, b: 0.212, a: 1}
+  _numpadDisabled: {r: 0.137, g: 0.133, b: 0.192, a: 1}
+  _numpadActive: {r: 0.541, g: 0.373, b: 0.839, a: 1}
+  _numpadLabel: {r: 0.949, g: 0.937, b: 0.902, a: 1}
+  _numpadLabelExhausted: {r: 0.949, g: 0.937, b: 0.902, a: 0.28}
+  _numpadBadge: {r: 0.604, g: 0.588, b: 0.682, a: 1}
+  _numpadHintPending: {r: 0.788, g: 0.541, b: 0.102, a: 1}

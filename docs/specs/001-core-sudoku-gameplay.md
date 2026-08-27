@@ -428,14 +428,29 @@ stays the authoritative description of what exists.
    daily set is five banks, one per tier, kept separate from the main
    progression banks.
 
-6. **`Sudoku.Game` currently references only `Sudoku.Core`, `UnityEngine.UI`
-   and `Unity.TextMeshPro`.** PrimeTween and the Input System are installed but
-   not yet referenced by any assembly, because an unresolved assembly-definition
-   reference breaks the whole Unity compile. They are added back when code
-   actually uses them, in the skin and input steps.
+6. **`Sudoku.Game` references `Sudoku.Core`, `UnityEngine.UI`,
+   `Unity.TextMeshPro`, `Unity.InputSystem`, `Unity.InputSystem.ForUI` and
+   `PrimeTween.Runtime`.** *(Corrected during step 5: this item previously said
+   the Input System was unreferenced. It has been referenced since the greybox
+   input loop landed. Corrected again during step 10: PrimeTween was held back
+   until code actually used it, because an unresolved assembly-definition
+   reference breaks the whole Unity compile - the motion pass is where it was
+   added.)* The assembly is named `PrimeTween.Runtime`, from
+   `com.kyrylokuzyk.primetween@1.3.3`, and it is declared in two places that
+   must agree: the `references` list in `Assets/_Project/Game/Sudoku.Game.asmdef`
+   and a matching `<Reference Include="$(UnityScriptAssemblies)/PrimeTween.Runtime.dll" />`
+   in `tools/Sudoku.Game.Build/Sudoku.Game.Build.csproj`. Miss the second and
+   `tools/check-game.sh` fails while the editor is happy; miss the first and the
+   reverse.
 
-7. **The bundle identifier is a deliberate placeholder** (`com.changeme.sudoku`)
-   pending a decision. It is permanent once published.
+7. **The bundle identifier is `com.hladunoleksandr.sudoku`** on Android and
+   iOS. It is permanent once published. *(Corrected during step 5: this item
+   previously described the identifier as the placeholder
+   `com.changeme.sudoku`, which was resolved before this branch began. The
+   Standalone identifier is still the URP template default, which is harmless
+   while desktop stays out of scope. Corrected again during step 14: Standalone
+   now carries the same identifier as the other two. Harmless is not the same as
+   gone, and ticket #14 asks that no placeholder identity remain.)*
 
 8. **The greybox UI is built in code, not authored as prefabs**, and installs
    itself via `RuntimeInitializeOnLoadMethod` so no scene has to be edited. For
@@ -446,7 +461,10 @@ stays the authoritative description of what exists.
 9. **Greybox text uses legacy `UI.Text` with the engine's built-in font.**
    TextMeshPro needs its essential resources imported and real font assets
    generated from Fredoka and Nunito - both editor operations - so TMP arrives
-   with the skin pass. Text only has to be legible at this stage.
+   with the skin pass. Text only has to be legible at this stage. *(Still true
+   after step 8: the atlas generator is written and the theme carries the font
+   references, but neither the import nor the generation can be performed
+   headlessly - see item 27.)*
 
 10. **Banks live under `Assets/_Project/Resources/Banks/`.** Unity requires the
     literal folder name `Resources` for runtime loading, so the bake output path
@@ -467,3 +485,409 @@ stays the authoritative description of what exists.
     `nunit.framework.dll` before running anything, so that class of divergence
     fails in the normal loop. `tools/check.sh` runs everything that can be
     verified without opening the editor.
+
+13. **The two-tap hint's pending state lives in `GameSession`, not the view.**
+    `PeekHint`/`UseHint` each re-derive the deduction, so two taps against a
+    board that moved in between could show one cell and fill another - and
+    could spend a hint on a cell the player had already filled. `GameSession`
+    now holds the revealed-but-untaken hint (`PendingHint`) and exposes
+    `RevealHint`, `TakeHint` and `CancelHint`; any board mutation drops it.
+    "The cell you were shown is the cell that gets filled" is therefore a rule,
+    tested at the `GameSession` seam with no engine, rather than a convention
+    the presenter has to keep. `PeekHint`/`UseHint` remain for callers that
+    want the one-shot form.
+
+14. **Starting a puzzle over is `GameSession.Restart()`, and pausing is the
+    navigator.** Restart could have been a fresh session dealt over the same
+    `Puzzle` by the pause screen, but only the session knows what "back to the
+    beginning" means for the board, the notes, the undo history, the clock and
+    every counter it owns - and a run that ended out of hearts has to become
+    playable again, which is a status change no caller can make. It is
+    therefore a rule in Core, tested at the `GameSession` seam with no engine.
+    Pause goes the other way: the pause screen is a screen on the back stack
+    rather than a panel inside the game screen, so showing it hides the game
+    screen and the existing `OnShow`/`OnHide` suspension is what stops the
+    clock and takes the board out of reach. There is no second pause mechanism
+    to keep in step with the first. Leaving for Home uses a new
+    `Navigator.ResetTo<TScreen>()` - the player asked for Home, not for two
+    steps backwards through a pause screen over a puzzle they have left.
+    Restart is the only action here that destroys work, so it is the only one
+    that asks twice (user story 58); leaving for Home discards nothing, so it
+    does not ask at all.
+
+15. **Preferences are declarations on one settings service, stored in
+    `PlayerPrefs`.** `GameSettings` owns a `Preference<T>` per setting - read,
+    written, and observed through the preference itself - and republishes every
+    change on one `Changed` stream so analytics needs no per-preference wiring.
+    Values round-trip through invariant text, so a new preference (the theme
+    choice) is one declaration rather than a new storage case. They live in
+    `PlayerPrefs` rather than the save file deliberately: a corrupt or migrated
+    save must not cost the player their settings. Settings-as-an-overlay is a
+    `Navigator` push rather than a second layering mechanism - the puzzle stays
+    on the back stack, and `GamePresenter.OnHide` already suspends its clock.
+
+16. **Save payloads are JSON, but encoded in `Sudoku.Core` rather than by
+    `UnityEngine.JsonUtility`.** The spec named `SaveSerializer` as the
+    round-trip seam and Unity's built-in serializer as the encoder, and those
+    two pull in opposite directions: Core has `noEngineReferences`, so a
+    serializer built on `JsonUtility` could not live at the seam the tests have
+    to reach. `Core/Persistence/JsonValue.cs` is a small reader/writer covering
+    exactly the payload's grammar; the DTO shape is still array-based, so the
+    file remains ordinary JSON. `Sudoku.Game` keeps only what genuinely needs
+    the engine: the persistent data path, the atomic write, the background
+    thread, and the pause/focus flush.
+
+17. **The save schema ships at version 2, not 1.** *(Superseded during step 7:
+    the schema is now at version 3 - see item 22. What follows describes how
+    version 2 came about and why version 1 is kept as a fixture; both still
+    hold, and version 3 adds a third step to the same chain.)* Version 1 is the greybox
+    shape - one in-progress puzzle under `slot`, with played-puzzle counts left
+    in `PlayerPrefs`. Version 2 gives every difficulty its own slot plus a daily
+    one and absorbs that tracking. Keeping version 1 as a real, checked-in
+    fixture (`Core.Tests/Fixtures/SavePayloads.cs`) means the migration hook is
+    exercised by a payload the current serializer cannot produce, which is the
+    only way the hook is worth anything.
+
+18. **`puzzle_abandoned` means discarded, not left behind.** Starting another
+    difficulty used to abandon the session in hand, which made the drop-off
+    number a measure of tier-hopping rather than of frustration - the puzzle
+    being "abandoned" was still sitting under its own tier waiting to be
+    continued. The event now fires only where something is actually thrown
+    away: confirming Start Fresh over an in-progress puzzle. When that happens
+    after a cold start there is no session in memory to speak for the puzzle,
+    so the saved one is restored purely in order to emit it - the event
+    therefore always carries the real elapsed time and filled-cell count,
+    through the session's own stream rather than a channel of its own.
+
+19. **Continue is answered by the save file, not by memory.** `HomeView` and
+    `DifficultySelectView` ask a `Func` on every showing and are handed a
+    `SaveSlot` - `SaveData.MostRecent()` for Home, the new
+    `SaveData.ResumableFor(tier)` per row for the picker - so a puzzle survives
+    the launch where being offered it matters most: the one after the process
+    was killed. `GamePresenter.Resume(SaveSlot)` takes the slot rather than a
+    tier for the same reason, and `SaveSlot.ElapsedSeconds` lets a clock be
+    quoted without rebuilding a session to ask. Picking a tier that already has
+    a game shows a `ResumePromptView` rather than assuming either answer; its
+    Start Fresh arms on the first tap and means it on the second, the same
+    warning shape the pause screen's Restart uses.
+
+20. **`IConsumableService` holds the hearts and hints rather than sitting beside
+    them.** The spec asks that both be spent exclusively through the interface.
+    An interface that only *offers* a spend method leaves the counters where
+    they were, and gameplay can still decrement them - which makes the seam
+    decorative exactly when it matters. `GameSession` therefore keeps no counter
+    of its own: `HeartsRemaining` and `HintsRemaining` read straight off the
+    service, a mistake asks it to spend a heart, a taken hint asks it to spend a
+    hint before the board moves, and dealing, restarting and restoring go
+    through `Reset`. Handing the session a service that refuses every spend
+    leaves the hearts untouched and the run alive, which is how
+    `Core.Tests/Session/ConsumableSeamTests.cs` proves nothing routes around it.
+    The interface lives in Core because what a heart costs is a rule. The
+    shipping implementation, `LocalConsumables`, refuses every refill and says
+    so through `CanRefill`, so the out-of-hearts screen can present the offer
+    and disable it rather than hide it.
+
+21. **The completion flow is an object with an empty stage in it.**
+    `Game/Session/CompletionFlow.cs` runs three named stages - board cascade,
+    interstitial, results card - each taking a continuation, because the two
+    still empty are both asynchronous. A null stage is skipped, so today
+    completion reaches the results card immediately while the seam is a real,
+    named, findable place rather than a comment. *(Corrected during step 10:
+    the first stage is now the board cascade, so completion no longer reaches
+    the results card immediately. The second is still reserved and still
+    deliberately unassigned.)* Heart
+    depletion does not go through the flow: there is no cascade to play, and an
+    ad after a loss is the one place an interstitial should not be.
+
+22. **The save schema is at version 3.** Version 3 adds the best time per
+    difficulty under `best`. Records go in the save file rather than
+    `PlayerPrefs` so that a record and the puzzles that produced it are backed
+    up, moved and cleared together. `SavePayloads.SchemaVersionTwo` is checked
+    in alongside the version-1 fixture so the new migration step is exercised by
+    a payload predating records rather than by one the current serializer wrote.
+
+23. **Analytics is a translator on the event stream, not calls inside
+    gameplay.** `IAnalyticsService` and `AnalyticsReporter` live in
+    `Sudoku.Core` because an event schema is not an engine concern and because
+    the batching and the common parameters are then testable at the same seam
+    the rules are; only the console implementation and the app version,
+    platform and screen names are in `Sudoku.Game`. The reporter subscribes to
+    `GameSession.Emitted`, `Navigator.Navigated` and `GameSettings.Changed`, so
+    there is not one analytics call in the rules, in a screen or in a
+    preference. Two things the spec did not name were needed to make it honest:
+    `GameEvent` gained `FilledCellCount` - progress with the clues excluded, so
+    an abandoned Easy puzzle and an abandoned Master one are comparable - and
+    the common parameters carry the platform alongside the five listed, since a
+    crash-shaped drop-off on one OS is otherwise invisible. Cell placements
+    batch ten to an event and any other event flushes the batch first, which
+    keeps the recorded order the order things happened in.
+
+24. **The eight effects are synthetic placeholders, not the CC0 assets the spec
+    calls for.** The service, the mixer, both mutes, the haptics and every call
+    site are built and working; what is committed under
+    `Assets/_Project/Resources/Audio/` is eight short sine-and-noise envelopes
+    generated programmatically for the branch, so that the whole chain could be
+    heard and reviewed rather than shipped untested behind empty clip slots.
+    They carry no licence and no provenance, and sourcing real CC0 effects is
+    still outstanding - `Assets/_Project/Audio/README.md` says so, and lists
+    what each of the eight slots wants. Nothing in the code changes when they
+    arrive: a missing clip is already a no-op, so they can be replaced one at a
+    time. The clips and the mixer live under `Resources/` rather than the
+    `Game/Audio` folder the spec's layout names, because the interface is built
+    in code with no scene or prefab to hold an asset reference; `Game/Audio`
+    holds the service. Haptics are a native plugin
+    (`Assets/_Project/Plugins/iOS/SudokuHaptics.m`, plus an `AndroidJavaObject`
+    path) because the engine has no cross-platform impact API - `Handheld.Vibrate`
+    is one half-second buzz, which cannot tell a placement from a mistake. That
+    plugin is the one piece of this that a headless check cannot compile; it
+    only builds on a device.
+
+25. **The copy table lives in `Sudoku.Core`, and there is a sixth reaction
+    bucket.** `Core/Copy/CopyTable.cs` holds every user-facing string in the
+    game, including the purely functional ones, and `ReactionPicker` holds the
+    bucketing and the no-repeat rule. Copy reads as presentation, so the
+    presentation layer is where the spec's folder layout puts it - but the
+    Unity layer deliberately has no test seam, and the one element the spec
+    calls hardest to get right would then have been the one element with no
+    coverage at all. Copy is engine-free data and bucketing is a pure rule, so
+    both sit in Core and are tested there: pool sizes, no line shared between
+    pools, nothing exclamatory, nothing non-ascii, and no line repeating until
+    its pool is spent. `CopyTable.InPuzzle` lists every string visible while a
+    puzzle is on screen so story 72 is a checked assertion rather than a
+    convention. The spec names five outcome buckets; a solve with an ordinary
+    time and one mistake is none of them, so `ReactionBucket.Steady` was added
+    for the common case rather than leaving the card blank. Buckets are ranked
+    mistakes, hints, perfect, fast, slow, steady - what the player did outranks
+    the clock - and a personal best counts as fast at any time on the clock,
+    because fast is relative to the player rather than to the tier.
+
+26. **The theme is a table of roles, not a palette handed round.** A component
+    names a `ThemeSlot` - `CellSelected`, `PrimaryFill`, `NumpadLabelExhausted` -
+    and a `ThemeDefinition` asset says what that role looks like. `Ui.Panel`,
+    `Ui.Label` and `Ui.Button` take a slot where they used to take a `Color`,
+    and attach a `ThemedGraphic` that remembers it, so a switch is one pass over
+    the live tags rather than a repaint method on every screen. A view that
+    changes state moves the slot (`themed.Use(ThemeSlot.WarnFill)`); it never
+    names a colour. The spec asked for the palette *and* the fonts on one
+    ScriptableObject and got both, but it did not anticipate the slot indirection
+    - the alternative, handing each view a `ThemeDefinition` and having it hold
+    references to its own graphics, is the same feature with a repaint method
+    per screen and a bug the first time someone forgets one.
+
+    Two consequences worth knowing. The service (`Themes`) is static, for the
+    same reason `Ui.ButtonTapped` is: the interface is built by static factories
+    and a colour is needed the frame a graphic is created. And the board's 81
+    cells carry about 970 `ThemedGraphic` tags between them - a component per
+    graphic, none of them with an `Update` - which is paid once at startup and
+    bought instant switching with no registration and nothing to unsubscribe.
+
+27. **TextMeshPro is still not in use, and the font atlases are not committed.**
+    `Sudoku/Theme/Generate Font Assets` bakes Fredoka and Nunito into SDF16
+    static ASCII atlases and assigns them to every shipped theme, and
+    `ThemeDefinition.DisplayFont` / `.NumeralFont` hold the references. None of
+    that can run outside the editor: TextMeshPro rasterises glyphs through the
+    font engine, and it cannot render at all until its essential resources have
+    been imported into the project, which is an asynchronous package import.
+    So the text path is still legacy `UI.Text` and the two font fields are
+    empty. Completing it is: run the menu command twice (once to trigger the
+    import, once to bake), then swap `Ui.Label` from `Text` to
+    `TextMeshProUGUI` and set its font from the theme. Everything else in step
+    8 - the palette, both themes, the settings switch, instant application -
+    is done and does not depend on it.
+
+    The atlases are baked at each variable font's default instance. The spec
+    asks for Fredoka SemiBold/Bold and Nunito Bold/ExtraBold; TextMeshPro's
+    runtime API exposes no way to pin a variable axis, so picking those weights
+    means either static font instances checked in beside the variable ones or a
+    later pass through the Font Asset Creator window.
+
+28. **The editor tooling is compile-checked too** (`tools/check-editor.sh`,
+    wired into `tools/check.sh`). Item 11 gave `Assets/_Project/Game` a headless
+    compile check; `Assets/_Project/Editor` had none, and a compile error there
+    blocks Play mode for the whole project just as surely as one in the game
+    layer. It builds against Unity's own `UnityEditor.*Module` assemblies, which
+    live in the same `Managed/UnityEngine` folder as the runtime ones.
+
+29. **The rounded rectangles are drawn, not imported.** The spec promised a look
+    that needs no illustration assets; `Game/Bootstrap/Shapes.cs` is what makes
+    that literally true. It rasterises a rounded-box signed distance field into
+    a small white texture - the shape lives in the alpha channel and the sprite
+    carries no colour of its own - and nine-slices it, so one 52x52 texture
+    dresses a button, a card and the board at any size. Nothing is committed,
+    nothing is imported, and nothing needs a licence. `Game/Bootstrap/Skin.cs`
+    holds the five measurements the language is made of, because a skin someone
+    buys changes the palette and not what a button is shaped like.
+
+    `ChunkyBox` assembles the three graphics - hard shadow, filled face, thick
+    stroke - and `ChunkyButton` is a `Button` subclass that forwards Unity's own
+    selection state to it, rather than a second set of pointer handlers trying
+    to stay in step with the first. Its transition is `None` on purpose: the
+    stock colour tint reaches one graphic and would leave a live stroke and
+    shadow round a dimmed face.
+
+30. **The press-depress is a state change, and the shadow collapse is a float.**
+    `ChunkyBox.ShadowDepth` is the gap between the face and the shadow that
+    never moves - `Skin.RestingShadow` at rest, `Skin.PressedShadow` while held
+    - and `SetPressed` snaps it. That is complete on its own: the interface
+    feels physical with no tweening in the project at all. Step 10 assigns the
+    static `ChunkyBox.PressAnimator` from the composition root and drives
+    `ShadowDepth` with overshoot easing instead of the snap, which is the whole
+    hand-off; no view and no screen has to be touched to add motion.
+
+31. **Safe area is one rect, and the ground is deliberately outside it.**
+    `SafeAreaFitter` sits between the canvas and every screen and is driven from
+    `Screen.safeArea` in normalised terms, polled rather than pushed because
+    Unity raises no event for it. The screen background stays parented to the
+    canvas and runs edge to edge - Android renders into the cutout and iOS shows
+    the home indicator, and a letterboxed background reads as a bug - while
+    every control hangs off the safe rect. No `ProjectSettings` change was
+    needed; `androidRenderOutsideSafeArea: 1` is the setting this design wants.
+
+32. **Motion is one table of numbers behind one boolean.**
+    `Game/Motion/Motions.cs` holds every duration, easing curve and travel
+    distance in the game, and every one of them leaves through `Seconds()`,
+    `Travel()` or `Overshoot` - so damping the whole game for Reduce Motion is
+    a single field rather than a sweep through a dozen call sites. Damped, the
+    overshoot curve becomes an ordinary deceleration that never passes its
+    target, durations keep 55% of their length and travel keeps 30% of its
+    distance; movement is shortened rather than removed, because a change with
+    no transition at all is harder to follow, not easier.
+
+    The press-depress arrives exactly where step 9 left room for it: the
+    composition root assigns the static `ChunkyBox.PressAnimator` and the tween
+    drives `ShadowDepth`. No view, screen or button call site changed. Screen
+    transitions are wired once to `Navigator.Navigated` for the same reason a
+    screen registers itself rather than being wired in - a screen added later
+    gets its entrance for free. Element entrances stagger the chunky boxes that
+    sit *directly* on a screen root, which is the whole selection rule: a
+    screen's own buttons and cards hang off its root and so arrive in sequence,
+    while the board, numpad and status strip are containers rather than boxes,
+    so the game screen swells into place and nothing inside it shuffles.
+
+    Board reactions - a cell popping on placement, shaking on a mistake, a
+    finished 3x3 box swelling - are a listener on `GameSession.Emitted`,
+    exactly as the audio is and for the same reason: gameplay never learns that
+    animation exists. The one movement the stream cannot carry is an edit to a
+    clue, because `GameSession.Place` *rejects* it and a rejected move announces
+    nothing; the presenter that was told no calls `BoardMotion.Refused`. "Is
+    this 3x3 box finished" now has one implementation, `Game/Board/BoardBoxes.cs`,
+    which both the audio and the motion ask - two copies of that rule could
+    drift apart. The completion cascade fills `CompletionFlow.BoardCascade`,
+    stage one; the interstitial seam beside it remains deliberately unassigned.
+
+    Zero allocation is a real constraint rather than a slogan: PrimeTween's
+    tween pool is sized once in `Motions.Install()` for the eighty-one cells the
+    cascade puts in the air on one frame, and every callback is a `static`
+    lambda over a target the tween already holds, which the compiler caches in a
+    field. There is no `<>c__DisplayClass` in `Motions` - two cached delegate
+    singletons and nothing else - so a tap allocates nothing at all.
+
+33. **Reduce Motion can be read from Android and cannot be read from iOS.**
+    This is worth stating precisely, because it is the one acceptance criterion
+    the platform does not fully allow.
+
+    On **Android** the accessibility setting "Remove animations" writes zero
+    into the global animation scales, and `animator_duration_scale` and
+    `transition_animation_scale` are ordinary values in `Settings.Global` that
+    any app may read through JNI - no plugin, no permission, no manifest entry.
+    `Game/Motion/ReduceMotion.cs` reads them, and it is a genuine read of the
+    OS setting.
+
+    On **iOS and tvOS** it cannot be read. The setting exists as
+    `UIAccessibilityIsReduceMotionEnabled()`, but Unity 6000.5.10f1 does not
+    surface it: `UnityEngine.Accessibility.AccessibilitySettings` exposes
+    exactly `fontScale`, `isBoldTextEnabled` and `isClosedCaptioningEnabled`,
+    plus `AssistiveSupport.isScreenReaderEnabled`, and reduced motion is not
+    among them. Reaching it means an Objective-C plugin, which cannot be
+    compiled or verified without a device build - and the project already
+    carries one such file (item 24). So none was added.
+
+    What ships instead is honest on both platforms: a **Reduce motion row in
+    Settings**, whose stored default is whatever the OS answered. An Android
+    player who has asked their system for less motion is honoured without ever
+    finding the row; an iOS player finds the row and it is the whole of the
+    control. Once the switch is touched, the player's answer is the answer -
+    silently overruling it at the next launch would make the switch look
+    broken. The day the iOS read becomes available, it changes one method
+    (`ReduceMotion.ReadableFromOs` and its reader) and nothing else.
+
+34. **A run that ends out of hearts is restarted by choosing its difficulty
+    again.** Ticket #7 already kept the failed puzzle in its slot, but nothing
+    could reach it: `SaveSlot.CanResume` is false for a failed session, so Home
+    hid Continue, `SaveData.ResumableFor` answered null, and picking that tier
+    dealt a *new* puzzle straight over the top. Leaving the game-over screen
+    quietly destroyed the puzzle - which is the opposite of the non-punitive way
+    out the ticket asks for, and it also spent a puzzle from a bank that never
+    repeats.
+
+    The fix is a second question the slot can answer. `SaveSlot.CanRestart` is
+    true exactly when the stored session failed, and `GamePresenter.StartPuzzle`
+    asks it after `CanResume`: a lost puzzle is taken back on and started over
+    from its clues rather than replaced. Continue still does not offer it -
+    there is nothing to carry on with, and a Continue button that hands back a
+    dead board is worse than no button - and the difficulty picker does not stop
+    to ask, because starting a lost puzzle over destroys nothing.
+
+    The two are deliberately separate properties rather than one "the slot has
+    something in it". They are different offers made by different screens, and
+    collapsing them is how the bug got in.
+
+35. **Restart re-reads the mistake limit; everything else about a puzzle's rules
+    is still snapshotted at deal time.** Item on ticket #4 stands: a settings
+    change must not rewrite a game already being scored, so `BuildRules` takes a
+    snapshot and the settings screen says "applies from the next puzzle". A
+    restart is not that game carrying on, though - it is the same puzzle from
+    the first tap, with the clock, the hearts and every counter back at zero -
+    so it is far closer to a new deal than to a resume, and a player who turns
+    the limit off and immediately asks for the puzzle again should get the run
+    they just asked for.
+
+    `GamePresenter.RereadRules` writes the current settings *into* the rules
+    object rather than replacing it, because `GameSession` holds that instance
+    for its lifetime and the save slot holds the same one - replacing it would
+    leave the session playing to rules nothing else can see.
+
+36. **Turning off "Highlight mistakes" silences five channels, not one.** Story
+    21 asks for a stricter, self-checked game. The preference reached only the
+    cell underline, while the shake, the error sound and firm haptic, the
+    numpad's remaining-count badge and the HUD's live `Mistakes n` counter all
+    went on announcing every wrong digit the instant it landed - and the badge
+    was the loudest of them, because refusing to count a digit names it as wrong
+    as plainly as painting it red would.
+
+    All five now read the same preference. The shake goes with the underline
+    deliberately: spec line 253 treats it as *the* redundant non-colour error
+    signal, so the two are one signal in two channels and belong behind one
+    switch. Two things stay: hearts remaining is still on the strip, because it
+    is a resource the player is spending rather than a telling-off and hiding it
+    would leave a run ending with no warning; and nothing about the mistake
+    system itself changes - the heart is still spent, the count is still kept,
+    and the run still fails at zero. The preference hides immediate feedback; it
+    does not make mistakes free.
+
+    One consequence is intended rather than tolerated: with the preference off,
+    nine 5s on the board grey the 5 out even if one of them is wrong. That is
+    what a self-checked board looks like - the pad reports what has been placed,
+    not what is correct - and erase is always available.
+
+37. **After 2,000 puzzles in one tier the sequence repeats.**
+    `PuzzleLibrary.Next` resets `progress.Played` to zero at bank exhaustion
+    while keeping `progress.Offset`, so the walk starts over from the same
+    stride and the same offset and deals the same puzzles in the same order.
+    Story 59 says no puzzle is served twice; this is the one place that is not
+    literally true.
+
+    It is left as it is. 2,000 puzzles per tier is a long way past any real
+    player, the alternative is either refusing to deal or carrying a played-set
+    per tier in the save file, and the honest fix is more content rather than
+    more bookkeeping. Recorded here so it is a known limit rather than a comment
+    in one method.
+
+38. **`SaveStore.Quarantine` is deliberate, and is not a requirement.** No
+    ticket asked for it. When a save file fails to parse, the store copies it to
+    `<save>.unreadable` before starting fresh, so a corruption that would
+    otherwise be overwritten within seconds can still be looked at. It writes
+    one fixed filename rather than accumulating copies, and every failure inside
+    it is swallowed with a warning, so the worst case is a duplicate of a file
+    that is already unusable. Kept, and recorded here so a later reader does not
+    take it for a criterion someone wrote down.

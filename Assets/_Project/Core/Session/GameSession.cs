@@ -17,14 +17,18 @@ namespace Sudoku.Core.Session
     public sealed class GameSession
     {
         /// <summary>
-        /// How far back undo reaches. Deep enough that no player meets it in
-        /// practice, shallow enough to keep a save payload small.
+        /// How much of the undo stack is written down. Undo itself is unlimited
+        /// while the puzzle is in play - a player who has taken four hundred
+        /// actions can walk back every one of them - but a save payload has to
+        /// stay small, so a snapshot keeps only the most recent moves. The cap
+        /// is deep enough that nobody resumes to find the step they wanted gone.
         /// </summary>
-        public const int UndoHistoryLimit = 200;
+        public const int PersistedHistoryLimit = 200;
 
         readonly Puzzle _puzzle;
         readonly RulesConfig _rules;
         readonly ConstraintSet _constraints;
+        readonly IConsumableService _consumables;
 
         readonly int[] _values = new int[Board.CellCount];
 
@@ -33,6 +37,10 @@ namespace Sudoku.Core.Session
         readonly int[] _notes = new int[Board.CellCount];
 
         readonly List<BoardCommand> _history = new List<BoardCommand>();
+
+        // How many cells the puzzle handed over already filled. Fixed for the
+        // life of the session, so player progress is one subtraction away.
+        readonly int _clueCount;
 
         int _emptyCells;
         bool _started;
@@ -43,17 +51,136 @@ namespace Sudoku.Core.Session
             : this(puzzle, rules, ConstraintSet.Classic) { }
 
         public GameSession(Puzzle puzzle, RulesConfig rules, ConstraintSet constraints)
+            : this(puzzle, rules, constraints, null) { }
+
+        /// <summary>
+        /// Plays a puzzle against a supplied consumable service. Passing null
+        /// gives the session a <see cref="LocalConsumables"/> of its own, which
+        /// is what every caller wants until something is actually selling
+        /// hearts.
+        /// </summary>
+        public GameSession(Puzzle puzzle, RulesConfig rules, ConstraintSet constraints,
+            IConsumableService consumables)
         {
             _puzzle = puzzle ?? throw new ArgumentNullException(nameof(puzzle));
             _rules = rules ?? throw new ArgumentNullException(nameof(rules));
             _constraints = constraints ?? throw new ArgumentNullException(nameof(constraints));
+            _consumables = consumables ?? new LocalConsumables();
 
             for (var i = 0; i < Board.CellCount; i++)
                 _values[i] = puzzle.ClueAt(i);
 
-            HeartsRemaining = rules.Hearts;
-            HintsRemaining = rules.Hints;
+            Stock();
             _emptyCells = CountEmpty();
+            _clueCount = Board.CellCount - _emptyCells;
+        }
+
+        /// <summary>
+        /// Puts the puzzle's allowance in the player's hands. Dealing is not
+        /// spending and not a reward, so it goes through
+        /// <see cref="IConsumableService.Reset"/> rather than either of them.
+        /// </summary>
+        void Stock()
+        {
+            _consumables.Reset(Consumable.Heart, _rules.Hearts);
+            _consumables.Reset(Consumable.Hint, _rules.Hints);
+        }
+
+        /// <summary>
+        /// Rebuilds a session from a snapshot instead of replaying the moves
+        /// that produced it. A resume has to be instant, and it must not
+        /// re-emit events the player already lived through.
+        /// </summary>
+        public static GameSession Restore(Puzzle puzzle, RulesConfig rules, SessionSnapshot snapshot) =>
+            Restore(puzzle, rules, ConstraintSet.Classic, snapshot);
+
+        /// <summary>
+        /// Rebuilds a session from a snapshot against an explicit constraint
+        /// set. See <see cref="Restore(Puzzle, RulesConfig, SessionSnapshot)"/>.
+        /// </summary>
+        public static GameSession Restore(Puzzle puzzle, RulesConfig rules, ConstraintSet constraints,
+            SessionSnapshot snapshot)
+        {
+            if (snapshot == null)
+                throw new ArgumentNullException(nameof(snapshot));
+
+            var session = new GameSession(puzzle, rules, constraints);
+            session.Adopt(snapshot);
+            return session;
+        }
+
+        void Adopt(SessionSnapshot snapshot)
+        {
+            CopyCells(snapshot.Values, _values, "values", nameof(snapshot));
+            CopyCells(snapshot.Notes, _notes, "notes", nameof(snapshot));
+
+            _history.Clear();
+            if (snapshot.History != null)
+                foreach (var command in snapshot.History)
+                    if (command != null)
+                        _history.Add(command);
+
+            // A save written by a build with a deeper cap must not hand this
+            // one a stack deeper than the one it promises.
+            while (_history.Count > PersistedHistoryLimit)
+                _history.RemoveAt(0);
+
+            ElapsedSeconds = snapshot.ElapsedSeconds;
+            _consumables.Reset(Consumable.Heart, snapshot.HeartsRemaining);
+            _consumables.Reset(Consumable.Hint, snapshot.HintsRemaining);
+            HintsUsed = snapshot.HintsUsed;
+            MistakeCount = snapshot.MistakeCount;
+            Status = snapshot.Status;
+            IsPaused = snapshot.IsPaused;
+            _started = snapshot.Started;
+            _emptyCells = CountEmpty();
+        }
+
+        /// <summary><paramref name="parameter"/> is the caller's own argument
+        /// name, so the exception blames the snapshot that was handed in rather
+        /// than a private helper nobody passed anything to.</summary>
+        static void CopyCells(int[] source, int[] destination, string what, string parameter)
+        {
+            if (source == null || source.Length != Board.CellCount)
+                throw new ArgumentException(
+                    $"A snapshot's {what} must hold {Board.CellCount} cells.", parameter);
+
+            Array.Copy(source, destination, Board.CellCount);
+        }
+
+        /// <summary>
+        /// A copy of everything that makes this session what it is. The arrays
+        /// and the stack are cloned, so a snapshot handed to a background writer
+        /// is not disturbed by the moves the player makes while it is in flight.
+        ///
+        /// This is where the undo stack is capped - see
+        /// <see cref="PersistedHistoryLimit"/>. The stack in memory is whole;
+        /// only the written copy is trimmed, and it is trimmed from the far end,
+        /// so what survives is the moves the player is most likely to reach for.
+        /// </summary>
+        public SessionSnapshot Capture() => new SessionSnapshot
+        {
+            Values = (int[])_values.Clone(),
+            Notes = (int[])_notes.Clone(),
+            History = PersistableHistory(),
+            ElapsedSeconds = ElapsedSeconds,
+            HeartsRemaining = HeartsRemaining,
+            HintsRemaining = HintsRemaining,
+            HintsUsed = HintsUsed,
+            MistakeCount = MistakeCount,
+            Status = Status,
+            IsPaused = IsPaused,
+            Started = _started
+        };
+
+        /// <summary>The most recent <see cref="PersistedHistoryLimit"/> commands,
+        /// oldest first - the whole stack when it is shallower than that.</summary>
+        List<BoardCommand> PersistableHistory()
+        {
+            var skip = _history.Count - PersistedHistoryLimit;
+            if (skip <= 0) return new List<BoardCommand>(_history);
+
+            return _history.GetRange(skip, PersistedHistoryLimit);
         }
 
         /// <summary>
@@ -80,6 +207,69 @@ namespace Sudoku.Core.Session
             Emit(GameEventKind.PuzzleAbandoned);
         }
 
+        /// <summary>
+        /// The way back into a run that ended out of hearts. It asks
+        /// <see cref="Consumables"/> for more and resumes only if any arrived,
+        /// so the whole of "can the player carry on" is one question put to the
+        /// service that will one day be backed by a rewarded ad. Returns false
+        /// today, because nothing is selling hearts yet.
+        ///
+        /// Nothing is emitted: the run is the same run, and telling analytics a
+        /// puzzle started twice would corrupt every funnel built on it.
+        /// </summary>
+        public bool ContinueWithMoreHearts()
+        {
+            if (Status != SessionStatus.Failed)
+                return false;
+
+            // One heart, always. A variable refill is a pricing decision, and
+            // there is nothing selling hearts to make it - so the number stays
+            // out of the rules until something is entitled to choose it.
+            if (_consumables.Refill(Consumable.Heart, 1) <= 0)
+                return false;
+
+            Status = SessionStatus.InProgress;
+            return true;
+        }
+
+        /// <summary>
+        /// Puts the same puzzle back to its clue state: the player's entries,
+        /// their notes, the undo history, the timer, hearts, mistakes and hints
+        /// all return to where they stood at the first tap.
+        ///
+        /// Starting over is a rule, not a screen. A caller could deal itself a
+        /// fresh session over the same puzzle instead, but only the session
+        /// knows what "back to the beginning" means for every counter it owns,
+        /// and a run that ended out of hearts has to become playable again -
+        /// which is why this resets <see cref="Status"/> too.
+        ///
+        /// Pause is left exactly as it was: whoever paused the session is the
+        /// one who decides when it resumes.
+        /// </summary>
+        public void Restart()
+        {
+            for (var i = 0; i < Board.CellCount; i++)
+            {
+                _values[i] = _puzzle.ClueAt(i);
+                _notes[i] = 0;
+            }
+
+            _history.Clear();
+            PendingHint = null;
+
+            Status = SessionStatus.InProgress;
+            ElapsedSeconds = 0f;
+            MistakeCount = 0;
+            HintsUsed = 0;
+            Stock();
+            _emptyCells = CountEmpty();
+
+            // The puzzle is being played from the beginning again, so anyone who
+            // counted the first run is told a run is starting - but only once
+            // play has actually begun, so this can never precede Start.
+            if (_started) Emit(GameEventKind.PuzzleStarted);
+        }
+
         void Emit(GameEventKind kind, int cellIndex = -1, int digit = Board.Empty, bool wasCorrect = false)
         {
             var handler = Emitted;
@@ -87,7 +277,7 @@ namespace Sudoku.Core.Session
 
             handler(new GameEvent(kind, cellIndex, digit, wasCorrect,
                 HeartsRemaining, HintsRemaining, MistakeCount, HintsUsed,
-                ElapsedSeconds, _emptyCells));
+                ElapsedSeconds, _emptyCells, FilledCellCount));
         }
 
         /// <summary>Where the play-through stands. Only InProgress accepts moves.</summary>
@@ -121,8 +311,19 @@ namespace Sudoku.Core.Session
 
         public void Resume() => IsPaused = false;
 
-        /// <summary>Wrong placements the player may still make this puzzle.</summary>
-        public int HeartsRemaining { get; private set; }
+        /// <summary>
+        /// Who holds this session's hearts and hints. Exposed so that a screen
+        /// offering the player more of either asks the same service the rules
+        /// spend from, rather than a second one that could disagree with it.
+        /// </summary>
+        public IConsumableService Consumables => _consumables;
+
+        /// <summary>
+        /// Wrong placements the player may still make this puzzle. Read straight
+        /// off <see cref="Consumables"/> - the session keeps no copy, so there is
+        /// no second number for gameplay to reach for.
+        /// </summary>
+        public int HeartsRemaining => _consumables.Remaining(Consumable.Heart);
 
         /// <summary>
         /// Every wrong placement the player has made, including repeats that
@@ -148,6 +349,13 @@ namespace Sudoku.Core.Session
 
         /// <summary>True when <paramref name="digit"/> is pencilled into the cell.</summary>
         public bool HasNote(int index, int digit) => (_notes[index] & MaskOf(digit)) != 0;
+
+        /// <summary>
+        /// The raw 9-bit pencil-mark mask for a cell, bit (digit - 1) per digit.
+        /// Exposed as a mask because the renderer and the save layer both want
+        /// all nine answers at once, and asking nine times is wasteful.
+        /// </summary>
+        public int NotesAt(int index) => _notes[index];
 
         /// <summary>
         /// Player intent: put <paramref name="digit"/> into a cell.
@@ -193,8 +401,12 @@ namespace Sudoku.Core.Session
             if (!correct)
             {
                 MistakeCount++;
-                if (_rules.MistakeLimitEnabled && HeartsRemaining > 0)
-                    HeartsRemaining--;
+
+                // The only place in the game a heart is ever lost, and it is a
+                // request rather than a decrement: whoever owns the hearts
+                // decides whether one is actually taken.
+                if (_rules.MistakeLimitEnabled)
+                    _consumables.Spend(Consumable.Heart);
 
                 Emit(GameEventKind.MistakeMade, index, digit, false);
 
@@ -264,6 +476,8 @@ namespace Sudoku.Core.Session
             if (_history.Count == 0)
                 return false;
 
+            PendingHint = null;
+
             var last = _history[_history.Count - 1];
             _history.RemoveAt(_history.Count - 1);
             last.Revert(_values, _notes);
@@ -275,8 +489,12 @@ namespace Sudoku.Core.Session
         /// <summary>Actions currently available to undo.</summary>
         public int UndoDepth => _history.Count;
 
-        /// <summary>Hints the player may still take this puzzle.</summary>
-        public int HintsRemaining { get; private set; }
+        /// <summary>
+        /// Hints the player may still take this puzzle. Like
+        /// <see cref="HeartsRemaining"/>, this is the service's number and not a
+        /// copy of it.
+        /// </summary>
+        public int HintsRemaining => _consumables.Remaining(Consumable.Hint);
 
         /// <summary>
         /// Hints taken. A solve with any hints is not a perfect solve, so this
@@ -396,7 +614,71 @@ namespace Sudoku.Core.Session
         public bool UseHint(int preferredCell = -1)
         {
             var hint = PeekHint(preferredCell);
+            return hint != null && ApplyHint(hint);
+        }
+
+        /// <summary>
+        /// The deduction the player has been shown but has not taken yet, or
+        /// null when none is waiting. Holding the hint here rather than in the
+        /// view is what makes "the cell you were shown is the cell that gets
+        /// filled" a guarantee: a second <see cref="PeekHint"/> against a
+        /// changed board could otherwise pick a different cell.
+        /// </summary>
+        public Hint PendingHint { get; private set; }
+
+        /// <summary>
+        /// First tap of a hint: shows the deduction and the cells that force
+        /// it, filling nothing and spending nothing. Returns null - and leaves
+        /// nothing pending - when there is nothing useful to reveal.
+        ///
+        /// Asking again while a hint is already pending re-offers the same one,
+        /// so a repeated tap can never quietly swap the cell under the player.
+        /// </summary>
+        public Hint RevealHint(int preferredCell = -1)
+        {
+            if (PendingHint != null)
+                return PendingHint;
+
+            PendingHint = PeekHint(preferredCell);
+            return PendingHint;
+        }
+
+        /// <summary>
+        /// Second tap of a hint: fills the cell that was revealed and spends
+        /// exactly one. Returns false when no hint is pending, so a tap that
+        /// follows a cancelled or unavailable hint costs nothing.
+        /// </summary>
+        public bool TakeHint()
+        {
+            var hint = PendingHint;
             if (hint == null)
+                return false;
+
+            PendingHint = null;
+            return ApplyHint(hint);
+        }
+
+        /// <summary>
+        /// Drops a revealed-but-untaken hint. The player looked elsewhere, and
+        /// a hint they never took is a hint they never spent.
+        /// </summary>
+        public void CancelHint() => PendingHint = null;
+
+        /// <summary>
+        /// Writes a hint onto the board and charges for it. Shared by the
+        /// one-shot <see cref="UseHint"/> and the two-tap
+        /// <see cref="TakeHint"/> so both spend on exactly the same terms.
+        /// </summary>
+        bool ApplyHint(Hint hint)
+        {
+            if (!IsActive)
+                return false;
+            if (_values[hint.CellIndex] == hint.Digit)
+                return false;
+
+            // Charged before the board moves, and by asking rather than
+            // decrementing: a refused hint leaves the cell exactly as it was.
+            if (!_consumables.Spend(Consumable.Hint))
                 return false;
 
             var edits = new List<BoardEdit>
@@ -418,7 +700,6 @@ namespace Sudoku.Core.Session
 
             Commit(new BoardCommand(BoardCommandKind.Hint, hint.CellIndex, edits));
 
-            HintsRemaining--;
             HintsUsed++;
             _emptyCells = CountEmpty();
             Emit(GameEventKind.HintUsed, hint.CellIndex, hint.Digit, true);
@@ -457,12 +738,27 @@ namespace Sudoku.Core.Session
         /// <summary>Cells still waiting for a digit.</summary>
         public int EmptyCellCount => _emptyCells;
 
+        /// <summary>
+        /// Cells the player has filled in, the puzzle's clues excluded. This is
+        /// how far they have got, which is not the same question as how full
+        /// the board looks - a Master puzzle starts with far fewer clues than an
+        /// Easy one, and progress has to be comparable across the two.
+        /// </summary>
+        public int FilledCellCount => Board.CellCount - _clueCount - _emptyCells;
+
         void Commit(BoardCommand command)
         {
+            // A pending hint was deduced from the board as it stood; once the
+            // board moves it is stale, and taking it could waste a hint on a
+            // cell the player has since filled themselves.
+            PendingHint = null;
+
             command.Apply(_values, _notes);
+
+            // Uncapped on purpose. Undo is unlimited during play; the only
+            // reason to forget a move is that a save payload has to stay small,
+            // and that is Capture's problem rather than the player's.
             _history.Add(command);
-            if (_history.Count > UndoHistoryLimit)
-                _history.RemoveAt(0);
         }
 
         static int MaskOf(int digit) => 1 << (digit - 1);

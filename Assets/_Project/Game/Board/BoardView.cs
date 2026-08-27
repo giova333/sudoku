@@ -2,8 +2,8 @@ using System;
 using Sudoku.Core.Model;
 using Sudoku.Core.Session;
 using Sudoku.Game.Bootstrap;
+using Sudoku.Game.Theme;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace Sudoku.Game.Board
 {
@@ -13,9 +13,6 @@ namespace Sudoku.Game.Board
     /// </summary>
     public sealed class BoardView : MonoBehaviour
     {
-        static readonly Color GridLine = new Color(0.35f, 0.37f, 0.42f);
-        static readonly Color BoardBackground = new Color(0.35f, 0.37f, 0.42f);
-
         CellView[] _cells;
 
         /// <summary>Raised when the player taps a cell.</summary>
@@ -25,27 +22,36 @@ namespace Sudoku.Game.Board
         {
             var rect = Ui.Rect("Board", parent);
             var view = rect.gameObject.AddComponent<BoardView>();
+            rect.sizeDelta = new Vector2(boardSize, boardSize);
 
-            var background = rect.gameObject.AddComponent<Image>();
-            background.color = BoardBackground;
-            background.raycastTarget = false;
+            // The sheet behind the cells is also the grid: the separators are
+            // the gaps the cells are placed with, so there is one colour here
+            // rather than a backing plus nine drawn lines. It wears the same
+            // chunky box as everything else - the board is the largest object
+            // on the screen, and it would be the one thing floating flat if it
+            // did not sit on a shadow of its own.
+            var sheet = Ui.Box("Sheet", rect, ThemeSlot.BoardLine);
+            Ui.Stretch(sheet.Rect);
+            sheet.Fill.raycastTarget = false;
 
-            const float thin = 1f;
-            const float thick = 3f;
-            const float outer = 3f;
+            // The gaps are wide enough to read as lines against rounded cells:
+            // at a one-unit hairline the cells' own corners would be most of
+            // what shows through, and the 9x9 would stop looking like a grid.
+            const float thin = 3f;
+            const float thick = 8f;
+            const float outer = 12f;
 
             // Solve for a cell size that leaves room for the separators.
             var separators = outer * 2 + thick * 2 + thin * 6;
             var cellSize = (boardSize - separators) / Core.Model.Board.Size;
 
-            rect.sizeDelta = new Vector2(boardSize, boardSize);
             view._cells = new CellView[Core.Model.Board.CellCount];
 
             for (var row = 0; row < Core.Model.Board.Size; row++)
             for (var col = 0; col < Core.Model.Board.Size; col++)
             {
                 var index = row * Core.Model.Board.Size + col;
-                var cell = CellView.Create(rect, index, cellSize);
+                var cell = CellView.Create(sheet.Face, index, cellSize);
 
                 var x = outer + col * cellSize + SeparatorsBefore(col, thin, thick) + cellSize / 2f;
                 var y = outer + row * cellSize + SeparatorsBefore(row, thin, thick) + cellSize / 2f;
@@ -61,6 +67,14 @@ namespace Sudoku.Game.Board
             return view;
         }
 
+        /// <summary>
+        /// One of the eighty-one cells, so that something outside the board can
+        /// move it. <see cref="Render"/> repaints; nothing in here animates, and
+        /// <see cref="BoardMotion"/> is what does - it needs a transform to
+        /// tween and this is the whole of what it is handed.
+        /// </summary>
+        public CellView CellAt(int index) => _cells[index];
+
         static float SeparatorsBefore(int line, float thin, float thick)
         {
             var total = 0f;
@@ -70,12 +84,27 @@ namespace Sudoku.Game.Board
         }
 
         readonly int[] _values = new int[Core.Model.Board.CellCount];
+        readonly bool[] _hintReason = new bool[Core.Model.Board.CellCount];
 
         /// <summary>Redraws every cell from the session's current state.</summary>
         public void Render(GameSession session, Puzzle puzzle, int selected, bool showMistakes)
         {
             for (var i = 0; i < Core.Model.Board.CellCount; i++)
+            {
                 _values[i] = session.ValueAt(i);
+                _hintReason[i] = false;
+            }
+
+            // A revealed hint teaches by showing its working, so the cells that
+            // force the answer are painted alongside the answer's cell.
+            var hint = session.PendingHint;
+            var hintTarget = -1;
+            if (hint != null)
+            {
+                hintTarget = hint.CellIndex;
+                foreach (var reason in hint.ReasonCells)
+                    _hintReason[reason] = true;
+            }
 
             var selectedDigit = selected >= 0 ? _values[selected] : Core.Model.Board.Empty;
 
@@ -86,12 +115,19 @@ namespace Sudoku.Game.Board
 
                 _cells[i].SetValue(value, puzzle.IsGiven(i), mistake);
                 _cells[i].SetNotes(NotesMaskOf(session, i));
-                _cells[i].SetHighlight(HighlightFor(i, selected, selectedDigit));
+                _cells[i].SetHighlight(HighlightFor(i, selected, selectedDigit, hintTarget));
             }
         }
 
-        CellHighlight HighlightFor(int index, int selected, int selectedDigit)
+        CellHighlight HighlightFor(int index, int selected, int selectedDigit, int hintTarget)
         {
+            // A hint waiting for an answer is the loudest thing on the board:
+            // it outranks selection and the scanning aids underneath it.
+            if (index == hintTarget)
+                return CellHighlight.HintTarget;
+            if (_hintReason[index])
+                return CellHighlight.HintReason;
+
             if (index == selected)
                 return CellHighlight.Selected;
             if (selected < 0)

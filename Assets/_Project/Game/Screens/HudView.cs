@@ -1,95 +1,146 @@
 using System;
+using Sudoku.Core.Copy;
 using Sudoku.Core.Difficulty;
 using Sudoku.Core.Session;
 using Sudoku.Game.Bootstrap;
+using Sudoku.Game.Theme;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace Sudoku.Game.Screens
 {
     /// <summary>
-    /// The status strip above the board, plus the greybox difficulty picker.
-    /// A proper home and difficulty-select screen replaces the picker later.
+    /// The status strip above the board: the way out, the tier being played,
+    /// and the run of the session's counters.
     /// </summary>
     public sealed class HudView : MonoBehaviour
     {
-        static readonly Color Label = new Color(0.16f, 0.17f, 0.20f);
-        static readonly Color Muted = new Color(0.45f, 0.47f, 0.52f);
-        static readonly Color Danger = new Color(0.83f, 0.21f, 0.24f);
-        static readonly Color ButtonColor = new Color(0.93f, 0.94f, 0.96f);
-        static readonly Color ButtonActive = new Color(0.55f, 0.75f, 0.98f);
+        /// <summary>Top-strip geometry. The three buttons are the same size and
+        /// are packed from the strip's edges, so the layout holds at any width
+        /// the strip is built at.</summary>
+        const float StripHeight = 170f;
+        const float ButtonWidth = 124f;
+        const float ButtonHeight = 56f;
+        const float ButtonRow = 52f;
+        const float Edge = 4f;
+        const float Gap = 10f;
 
+        /// <summary>The card the counters are printed on, and where it sits.</summary>
+        const float CardRow = -40f;
+        const float CardHeight = 80f;
+
+        Text _tierLabel;
         Text _status;
+        ThemedGraphic _statusTheme;
         Text _banner;
-        readonly System.Collections.Generic.Dictionary<DifficultyTier, Image> _tierButtons =
-            new System.Collections.Generic.Dictionary<DifficultyTier, Image>();
+        ThemedGraphic _bannerTheme;
 
-        public Action<DifficultyTier> TierChosen;
+        public Action BackTapped;
+        public Action PauseTapped;
+        public Action SettingsTapped;
 
         public static HudView Create(Transform parent, float width, float y)
         {
             var rect = Ui.Rect("Hud", parent);
             var view = rect.gameObject.AddComponent<HudView>();
-            Ui.Place(rect, new Vector2(0, y), new Vector2(width, 120));
+            Ui.Place(rect, new Vector2(0, y), new Vector2(width, StripHeight));
 
-            var tiers = (DifficultyTier[])Enum.GetValues(typeof(DifficultyTier));
-            var slot = width / tiers.Length;
+            // Three controls share the top strip, so their hit areas are laid
+            // out from the two edges rather than eyeballed: Back alone on the
+            // left, Pause and Settings stacked in from the right, and the tier
+            // label given whatever is left between them. Nothing overlaps at
+            // any width the strip is built at.
+            var back = Ui.Button("Back", rect, CopyTable.HudBack, 18,
+                ThemeSlot.ButtonFill, ThemeSlot.ButtonText);
+            Ui.Place((RectTransform)back.transform,
+                new Vector2(-width / 2f + Edge + ButtonWidth / 2f, ButtonRow),
+                new Vector2(ButtonWidth, ButtonHeight));
+            back.onClick.AddListener(() => view.BackTapped?.Invoke());
 
-            for (var i = 0; i < tiers.Length; i++)
-            {
-                var tier = tiers[i];
-                var x = -width / 2f + slot * (i + 0.5f);
+            // Settings sits inside the game rather than only on Home, because
+            // the moment a player wants the timer gone is the moment it is
+            // ticking at them.
+            var settings = Ui.Button("Settings", rect, CopyTable.HudSettings, 18,
+                ThemeSlot.ButtonFill, ThemeSlot.ButtonText);
+            Ui.Place((RectTransform)settings.transform,
+                new Vector2(width / 2f - Edge - ButtonWidth / 2f, ButtonRow),
+                new Vector2(ButtonWidth, ButtonHeight));
+            settings.onClick.AddListener(() => view.SettingsTapped?.Invoke());
 
-                var image = Ui.Panel($"Tier{tier}", rect, ButtonColor);
-                image.raycastTarget = true;
-                Ui.Place(image.rectTransform, new Vector2(x, 34), new Vector2(slot - 6, 46));
+            // The way to put the puzzle down without leaving it. It takes the
+            // slot next to Settings rather than the one opposite Back, so a
+            // mis-tap costs a screen the player can back out of instead of
+            // dropping them out of the puzzle.
+            var pause = Ui.Button("Pause", rect, CopyTable.HudPause, 18,
+                ThemeSlot.ButtonFill, ThemeSlot.ButtonText);
+            Ui.Place((RectTransform)pause.transform,
+                new Vector2(width / 2f - Edge - ButtonWidth - Gap - ButtonWidth / 2f, ButtonRow),
+                new Vector2(ButtonWidth, ButtonHeight));
+            pause.onClick.AddListener(() => view.PauseTapped?.Invoke());
 
-                var label = Ui.Label("Label", image.rectTransform, 16, Label);
-                Ui.Stretch(label.rectTransform);
-                label.text = tier.ToString();
+            // What is left between Back's right edge and Pause's left edge,
+            // which is off-centre in the strip - the buttons are the things
+            // that have to be reachable.
+            var tierLeft = -width / 2f + Edge + ButtonWidth + Gap;
+            var tierRight = width / 2f - Edge - ButtonWidth * 2f - Gap * 2f;
 
-                var button = image.gameObject.AddComponent<Button>();
-                button.targetGraphic = image;
-                button.onClick.AddListener(() => view.TierChosen?.Invoke(tier));
+            view._tierLabel = Ui.Label("Tier", rect, 22, ThemeSlot.Muted);
+            Ui.Place(view._tierLabel.rectTransform,
+                new Vector2((tierLeft + tierRight) / 2f, ButtonRow),
+                new Vector2(tierRight - tierLeft, ButtonHeight));
 
-                view._tierButtons[tier] = image;
-            }
+            // The counters and the banner are printed on a card rather than on
+            // the ground, so the strip reads as one object above the board
+            // instead of as text floating over the wallpaper.
+            var card = Ui.Box("Card", rect, ThemeSlot.CardSurface);
+            Ui.Place(card.Rect, new Vector2(0, CardRow), new Vector2(width, CardHeight));
+            card.Fill.raycastTarget = false;
 
-            view._status = Ui.Label("Status", rect, 20, Label);
-            Ui.Place(view._status.rectTransform, new Vector2(0, -14), new Vector2(width, 30));
+            view._status = Ui.Label("Status", card.Face, 20, ThemeSlot.Muted);
+            view._statusTheme = view._status.GetComponent<ThemedGraphic>();
+            Ui.Place(view._status.rectTransform, new Vector2(0, 18), new Vector2(width, 30));
 
-            view._banner = Ui.Label("Banner", rect, 24, Danger);
-            Ui.Place(view._banner.rectTransform, new Vector2(0, -46), new Vector2(width, 30));
-            view._banner.text = "";
+            view._banner = Ui.Label("Banner", card.Face, 24, ThemeSlot.Danger);
+            view._bannerTheme = view._banner.GetComponent<ThemedGraphic>();
+            Ui.Place(view._banner.rectTransform, new Vector2(0, -16), new Vector2(width, 30));
+            view._banner.text = string.Empty;
 
             return view;
         }
 
-        public void Render(GameSession session, DifficultyTier tier, bool timerVisible)
+        /// <summary>
+        /// Redraws the strip. <paramref name="showMistakes"/> is the
+        /// immediate-feedback preference: a live count that ticks up the instant
+        /// a wrong digit lands is that feedback in another channel, so the
+        /// counter goes when the colour does.
+        /// </summary>
+        public void Render(GameSession session, DifficultyTier tier, bool timerVisible,
+            bool showMistakes)
         {
-            foreach (var pair in _tierButtons)
-                pair.Value.color = pair.Key == tier ? ButtonActive : ButtonColor;
+            _tierLabel.text = CopyTable.Tier(tier);
 
-            var minutes = Mathf.FloorToInt(session.ElapsedSeconds / 60f);
-            var seconds = Mathf.FloorToInt(session.ElapsedSeconds % 60f);
-            var clock = timerVisible ? $"{minutes:00}:{seconds:00}" : "--:--";
+            var elapsed = Ui.Clock(session.ElapsedSeconds);
+            var clock = timerVisible ? elapsed : CopyTable.HudTimerHidden;
 
-            _status.text = $"{clock}    Hearts {session.HeartsRemaining}    " +
-                           $"Mistakes {session.MistakeCount}    Left {session.EmptyCellCount}";
-            _status.color = session.HeartsRemaining <= 1 ? Danger : Muted;
+            _status.text = showMistakes
+                ? CopyTable.HudStatus(clock, session.HeartsRemaining,
+                    session.MistakeCount, session.EmptyCellCount)
+                : CopyTable.HudStatusUnchecked(clock, session.HeartsRemaining,
+                    session.EmptyCellCount);
+            _statusTheme.Use(session.HeartsRemaining <= 1 ? ThemeSlot.Danger : ThemeSlot.Muted);
 
             switch (session.Status)
             {
                 case SessionStatus.Completed:
-                    _banner.text = $"Solved in {minutes:00}:{seconds:00} - pick a difficulty for another";
-                    _banner.color = new Color(0.15f, 0.55f, 0.30f);
+                    _banner.text = CopyTable.HudSolvedBanner(elapsed);
+                    _bannerTheme.Use(ThemeSlot.Celebrate);
                     break;
                 case SessionStatus.Failed:
-                    _banner.text = "Out of hearts - pick a difficulty to try again";
-                    _banner.color = Danger;
+                    _banner.text = CopyTable.HudFailedBanner;
+                    _bannerTheme.Use(ThemeSlot.Danger);
                     break;
                 default:
-                    _banner.text = "";
+                    _banner.text = string.Empty;
                     break;
             }
         }

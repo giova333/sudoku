@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Standalone build of Assets/_Project/Core over the SAME source files Unity
+    compiles via Sudoku.Core.asmdef. This is dev tooling only: it is never built
+    into the game, and Unity ignores it because it lives outside Assets/.
+
+    Two reasons it exists:
+      1. A ~2s red->green loop, versus ~60s for Unity batchmode (which also
+         cannot run while the Editor has the project open).
+      2. It mechanically enforces the spec's hard rule that Core has zero
+         UnityEngine references - if someone adds one, this build fails.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>Sudoku.Core</AssemblyName>
+    <RootNamespace>Sudoku.Core</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/_Project/Core/**/*.cs" />
+  </ItemGroup>
+</Project>

@@ -19,6 +19,9 @@
 .gradle/
 ExportedObj/
 *.csproj
+# ...but the standalone runner projects under tools/ are hand-written and
+# must be checked in, or a fresh clone cannot run tools/check.sh.
+!/tools/**/*.csproj
 *.unityproj
 *.sln
 *.suo

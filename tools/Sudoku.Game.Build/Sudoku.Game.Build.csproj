@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Compile check for the Unity presentation layer, over the same sources
+    Sudoku.Game.asmdef compiles. It cannot run anything - there is no engine
+    here - but it catches type and API errors in seconds instead of waiting on
+    an editor round-trip. Never shipped; Unity ignores it (outside Assets/).
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>Sudoku.Game</AssemblyName>
+    <RootNamespace>Sudoku.Game</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <!-- Unity's assemblies are not signed/reference assemblies; quiet the noise. -->
+    <NoWarn>$(NoWarn);CS0618;CS0649;CS1701;CS1702</NoWarn>
+    <UnityManaged>/Applications/Unity/Hub/Editor/6000.5.10f1/Unity.app/Contents/Resources/Scripting/Managed</UnityManaged>
+    <UnityScriptAssemblies>../../Library/ScriptAssemblies</UnityScriptAssemblies>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/_Project/Game/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Sudoku.Core.Build/Sudoku.Core.Build.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="$(UnityManaged)/UnityEngine/*.dll" Private="false" />
+    <Reference Include="$(UnityScriptAssemblies)/UnityEngine.UI.dll" Private="false" />
+    <Reference Include="$(UnityScriptAssemblies)/Unity.TextMeshPro.dll" Private="false" />
+    <Reference Include="$(UnityScriptAssemblies)/Unity.InputSystem.dll" Private="false" />
+    <Reference Include="$(UnityScriptAssemblies)/Unity.InputSystem.ForUI.dll" Private="false" />
+    <Reference Include="$(UnityScriptAssemblies)/PrimeTween.Runtime.dll" Private="false" />
+  </ItemGroup>
+</Project>
