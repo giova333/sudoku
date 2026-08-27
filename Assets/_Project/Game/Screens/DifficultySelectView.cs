@@ -59,8 +59,7 @@ namespace Sudoku.Game.Screens
                 var tier = tiers[i];
                 var button = Ui.Button($"Tier{tier}", rect, CopyTable.Tier(tier), 34,
                     ThemeSlot.ButtonFill, ThemeSlot.ButtonText);
-                Ui.Place((RectTransform)button.transform,
-                    new Vector2(0, (top - i) * 150f), new Vector2(640, 110));
+                Ui.StackAt(button, (top - i) * 150f);
                 button.onClick.AddListener(() => view.TierChosen?.Invoke(tier));
 
                 // The marker rides inside the row rather than beside it, so a

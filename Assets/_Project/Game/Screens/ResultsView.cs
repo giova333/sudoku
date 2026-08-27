@@ -92,11 +92,11 @@ namespace Sudoku.Game.Screens
             Ui.Place(view._reaction.rectTransform, new Vector2(0, 80), new Vector2(880, 60));
             view._reaction.text = string.Empty;
 
-            var next = AddButton(rect, CopyTable.ResultsNext, -80,
+            var next = Ui.ScreenButton(rect, CopyTable.ResultsNext, -80,
                 ThemeSlot.PrimaryFill, ThemeSlot.PrimaryText);
             next.onClick.AddListener(() => view.NextTapped?.Invoke());
 
-            var home = AddButton(rect, CopyTable.ResultsHome, -220,
+            var home = Ui.ScreenButton(rect, CopyTable.ResultsHome, -220,
                 ThemeSlot.ButtonFill, ThemeSlot.ButtonText);
             home.onClick.AddListener(() => view.HomeTapped?.Invoke());
 
@@ -129,7 +129,7 @@ namespace Sudoku.Game.Screens
             if (_result == null) return;
 
             _tier.text = CopyTable.Tier(_result.Tier);
-            _time.text = Clock(_result.ElapsedSeconds);
+            _time.text = Ui.Clock(_result.ElapsedSeconds);
             _counters.text = CopyTable.ResultsCounters(_result.MistakeCount, _result.HintsUsed);
 
             if (_result.IsNewBest)
@@ -139,25 +139,11 @@ namespace Sudoku.Game.Screens
             }
             else
             {
-                _best.text = CopyTable.ResultsBest(Clock(_result.BestSeconds));
+                _best.text = CopyTable.ResultsBest(Ui.Clock(_result.BestSeconds));
                 _bestTheme.Use(ThemeSlot.Muted);
             }
 
             _reaction.text = _reactionLine;
-        }
-
-        static string Clock(float seconds)
-        {
-            var minutes = Mathf.FloorToInt(seconds / 60f);
-            var rest = Mathf.FloorToInt(seconds % 60f);
-            return $"{minutes:00}:{rest:00}";
-        }
-
-        static Button AddButton(Transform parent, string text, float y, ThemeSlot fill, ThemeSlot textSlot)
-        {
-            var button = Ui.Button(text, parent, text, 34, fill, textSlot);
-            Ui.Place((RectTransform)button.transform, new Vector2(0, y), new Vector2(640, 110));
-            return button;
         }
     }
 }

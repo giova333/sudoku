@@ -146,6 +146,30 @@ namespace Sudoku.Game.Bootstrap
         }
 
         /// <summary>
+        /// How big a screen's own buttons are. Home, difficulty select, pause,
+        /// the resume prompt, results and game over all stack the same button
+        /// down the middle of the screen, so the two numbers are written once
+        /// rather than in six places that have to agree by eye.
+        /// </summary>
+        public static readonly Vector2 ButtonSize = new Vector2(640, 110);
+
+        /// <summary>
+        /// One of those buttons, centred and placed at <paramref name="y"/>.
+        /// </summary>
+        public static Button ScreenButton(Transform parent, string text, float y,
+            ThemeSlot fill, ThemeSlot textSlot)
+        {
+            var button = Button(text, parent, text, 34, fill, textSlot);
+            StackAt(button, y);
+            return button;
+        }
+
+        /// <summary>Moves a screen button to a new row without rebuilding it -
+        /// what a screen that lays its rows out at run time needs.</summary>
+        public static void StackAt(Button button, float y) =>
+            Place((RectTransform)button.transform, new Vector2(0, y), ButtonSize);
+
+        /// <summary>
         /// Where anything extra printed on a button belongs: the face, so it
         /// rides down with the press instead of hovering over a button that has
         /// moved out from under it.

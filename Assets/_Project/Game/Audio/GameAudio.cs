@@ -12,14 +12,17 @@ namespace Sudoku.Game.Audio
     /// the player hears for free. The two things the stream does not announce -
     /// erasing, and a 3x3 box being finished - are handled either side of that:
     /// erase is played by the presenter that asked for it, and box completion
-    /// is worked out here from the board the session already exposes.
+    /// comes from a <see cref="BoxWatcher"/>, the same one the board's own
+    /// celebration is built on.
     /// </summary>
     public sealed class GameAudio
     {
         readonly IAudioService _audio;
 
-        /// <summary>Which boxes were already finished, so completion is heard once and not on every later move.</summary>
-        readonly bool[] _boxComplete = new bool[BoardBoxes.Count];
+        /// <summary>The chime's half of a finished 3x3 box - the swell is the
+        /// other half, and both hang off one <see cref="BoxWatcher"/> so they
+        /// can never land on different moves.</summary>
+        readonly BoxWatcher _boxes;
 
         GameSession _session;
         int _hearts;
@@ -38,6 +41,7 @@ namespace Sudoku.Game.Audio
         public GameAudio(IAudioService audio)
         {
             _audio = audio ?? throw new ArgumentNullException(nameof(audio));
+            _boxes = new BoxWatcher(_ => _audio.Play(Sfx.BoxComplete));
         }
 
         /// <summary>
@@ -54,7 +58,7 @@ namespace Sudoku.Game.Audio
 
             _session.Emitted += OnGameEvent;
             _hearts = _session.HeartsRemaining;
-            RefreshBoxes(false);
+            _boxes.Follow(_session);
         }
 
         void OnGameEvent(GameEvent e)
@@ -66,7 +70,7 @@ namespace Sudoku.Game.Audio
                     // clues, so what "already finished" means has to be
                     // recounted rather than remembered.
                     _hearts = e.HeartsRemaining;
-                    RefreshBoxes(false);
+                    _boxes.Refresh(false);
                     break;
 
                 case GameEventKind.CellPlaced:
@@ -75,7 +79,7 @@ namespace Sudoku.Game.Audio
                     _audio.Impact(Haptic.Light);
                     // A finished board is about to announce itself; one fanfare
                     // is enough, and the box under the last digit is implied.
-                    RefreshBoxes(e.EmptyCellCount > 0);
+                    _boxes.Refresh(e.EmptyCellCount > 0);
                     break;
 
                 case GameEventKind.MistakeMade:
@@ -102,40 +106,19 @@ namespace Sudoku.Game.Audio
 
                 case GameEventKind.UndoUsed:
                     _audio.Play(Sfx.Erase);
-                    RefreshBoxes(false);
+                    _boxes.Refresh(false);
                     break;
 
                 case GameEventKind.HintUsed:
                     _audio.Play(Sfx.Hint);
                     _audio.Impact(Haptic.Light);
-                    RefreshBoxes(e.EmptyCellCount > 0);
+                    _boxes.Refresh(e.EmptyCellCount > 0);
                     break;
 
                 case GameEventKind.PuzzleCompleted:
                     _audio.Play(Sfx.PuzzleComplete);
                     _audio.Impact(Haptic.Light);
                     break;
-            }
-        }
-
-        /// <summary>
-        /// Recounts which boxes stand finished, and plays the chime for any
-        /// that just became so.
-        ///
-        /// Every board change recounts all nine rather than only the box that
-        /// was touched, because undo can un-finish one - and nine passes over
-        /// nine cells, a few times a second at most, is not worth the
-        /// bookkeeping needed to avoid it.
-        /// </summary>
-        void RefreshBoxes(bool announce)
-        {
-            for (var box = 0; box < BoardBoxes.Count; box++)
-            {
-                var complete = BoardBoxes.IsComplete(_session, box);
-                if (complete && !_boxComplete[box] && announce)
-                    _audio.Play(Sfx.BoxComplete);
-
-                _boxComplete[box] = complete;
             }
         }
     }

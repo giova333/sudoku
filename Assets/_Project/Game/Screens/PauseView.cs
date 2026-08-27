@@ -3,7 +3,6 @@ using Sudoku.Core.Copy;
 using Sudoku.Game.Bootstrap;
 using Sudoku.Game.Theme;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace Sudoku.Game.Screens
 {
@@ -19,9 +18,10 @@ namespace Sudoku.Game.Screens
     public sealed class PauseView : MonoBehaviour, IScreen
     {
         RectTransform _root;
-        ThemedGraphic _restartFill;
-        Text _restartText;
-        bool _restartArmed;
+
+        /// <summary>Restart is the only answer here that destroys anything, so
+        /// it is the only one that asks twice.</summary>
+        ArmedButton _restart;
 
         public Action ResumeTapped;
         public Action RestartTapped;
@@ -40,7 +40,7 @@ namespace Sudoku.Game.Screens
             Ui.Place(title.rectTransform, new Vector2(0, 520), new Vector2(800, 140));
             title.text = CopyTable.PauseTitle;
 
-            var resume = AddButton(rect, CopyTable.PauseResume, 140,
+            var resume = Ui.ScreenButton(rect, CopyTable.PauseResume, 140,
                 ThemeSlot.PrimaryFill, ThemeSlot.PrimaryText);
             resume.onClick.AddListener(() =>
             {
@@ -48,13 +48,13 @@ namespace Sudoku.Game.Screens
                 view.ResumeTapped?.Invoke();
             });
 
-            var restart = AddButton(rect, CopyTable.PauseRestart, 0,
+            var restart = Ui.ScreenButton(rect, CopyTable.PauseRestart, 0,
                 ThemeSlot.ButtonFill, ThemeSlot.ButtonText);
-            view._restartFill = restart.targetGraphic.GetComponent<ThemedGraphic>();
-            view._restartText = restart.GetComponentInChildren<Text>();
+            view._restart = new ArmedButton(restart, CopyTable.PauseRestart,
+                CopyTable.PauseRestartConfirm);
             restart.onClick.AddListener(view.OnRestartTapped);
 
-            var home = AddButton(rect, CopyTable.PauseHome, -140,
+            var home = Ui.ScreenButton(rect, CopyTable.PauseHome, -140,
                 ThemeSlot.ButtonFill, ThemeSlot.ButtonText);
             home.onClick.AddListener(() =>
             {
@@ -74,36 +74,15 @@ namespace Sudoku.Game.Screens
         public void OnHide() => DisarmRestart();
 
         /// <summary>
-        /// A restart throws away everything the player has entered, so the
-        /// first tap only arms it. Anything else they do - resuming, leaving,
-        /// or coming back to this screen later - disarms it again.
+        /// A restart throws away everything the player has entered, so the first
+        /// tap only arms it - see <see cref="ArmedButton"/>. Anything else the
+        /// player does disarms it again.
         /// </summary>
         void OnRestartTapped()
         {
-            if (!_restartArmed)
-            {
-                _restartArmed = true;
-                _restartText.text = CopyTable.PauseRestartConfirm;
-                _restartFill.Use(ThemeSlot.WarnFill);
-                return;
-            }
-
-            DisarmRestart();
-            RestartTapped?.Invoke();
+            if (_restart.Tapped()) RestartTapped?.Invoke();
         }
 
-        void DisarmRestart()
-        {
-            _restartArmed = false;
-            _restartText.text = CopyTable.PauseRestart;
-            _restartFill.Use(ThemeSlot.ButtonFill);
-        }
-
-        static Button AddButton(Transform parent, string text, float y, ThemeSlot fill, ThemeSlot textSlot)
-        {
-            var button = Ui.Button(text, parent, text, 34, fill, textSlot);
-            Ui.Place((RectTransform)button.transform, new Vector2(0, y), new Vector2(640, 110));
-            return button;
-        }
+        void DisarmRestart() => _restart.Disarm();
     }
 }

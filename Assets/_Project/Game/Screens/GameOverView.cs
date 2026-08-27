@@ -70,18 +70,18 @@ namespace Sudoku.Game.Screens
             // The offer is present and off rather than hidden. A button that
             // appears the day monetization ships is a surprise; a button that
             // has always been there, greyed, with a reason under it, is not.
-            view._moreHearts = AddButton(rect, CopyTable.GameOverMoreHearts, 120,
+            view._moreHearts = Ui.ScreenButton(rect, CopyTable.GameOverMoreHearts, 120,
                 ThemeSlot.PrimaryFill, ThemeSlot.PrimaryText);
             view._moreHearts.onClick.AddListener(() => view.MoreHeartsTapped?.Invoke());
 
             view._refillNote = Ui.Label("RefillNote", rect, 24, ThemeSlot.Disabled);
             Ui.Place(view._refillNote.rectTransform, new Vector2(0, 46), new Vector2(880, 40));
 
-            var restart = AddButton(rect, CopyTable.GameOverRestart, -60,
+            var restart = Ui.ScreenButton(rect, CopyTable.GameOverRestart, -60,
                 ThemeSlot.ButtonFill, ThemeSlot.ButtonText);
             restart.onClick.AddListener(() => view.RestartTapped?.Invoke());
 
-            var home = AddButton(rect, CopyTable.GameOverHome, -200,
+            var home = Ui.ScreenButton(rect, CopyTable.GameOverHome, -200,
                 ThemeSlot.ButtonFill, ThemeSlot.ButtonText);
             home.onClick.AddListener(() => view.HomeTapped?.Invoke());
 
@@ -108,13 +108,6 @@ namespace Sudoku.Game.Screens
 
         public void OnHide()
         {
-        }
-
-        static Button AddButton(Transform parent, string text, float y, ThemeSlot fill, ThemeSlot textSlot)
-        {
-            var button = Ui.Button(text, parent, text, 34, fill, textSlot);
-            Ui.Place((RectTransform)button.transform, new Vector2(0, y), new Vector2(640, 110));
-            return button;
         }
     }
 }

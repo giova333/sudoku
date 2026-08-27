@@ -22,9 +22,11 @@ namespace Sudoku.Game.Screens
         RectTransform _root;
         Text _title;
         Text _detail;
-        ThemedGraphic _freshFill;
-        Text _freshText;
-        bool _freshArmed;
+
+        /// <summary>Starting fresh is the one answer that destroys something, so
+        /// it is the one that asks twice.</summary>
+        ArmedButton _fresh;
+
         SaveSlot _slot;
 
         /// <summary>Both answers carry the slot they were asked about, so the
@@ -51,7 +53,7 @@ namespace Sudoku.Game.Screens
             view._detail = Ui.Label("Detail", rect, 26, ThemeSlot.Muted);
             Ui.Place(view._detail.rectTransform, new Vector2(0, 420), new Vector2(800, 60));
 
-            var resume = AddButton(rect, CopyTable.ResumeResume, 140,
+            var resume = Ui.ScreenButton(rect, CopyTable.ResumeResume, 140,
                 ThemeSlot.PrimaryFill, ThemeSlot.PrimaryText);
             resume.onClick.AddListener(() =>
             {
@@ -60,13 +62,13 @@ namespace Sudoku.Game.Screens
                 view.ResumeTapped?.Invoke(slot);
             });
 
-            var fresh = AddButton(rect, CopyTable.ResumeStartFresh, 0,
+            var fresh = Ui.ScreenButton(rect, CopyTable.ResumeStartFresh, 0,
                 ThemeSlot.ButtonFill, ThemeSlot.ButtonText);
-            view._freshFill = fresh.targetGraphic.GetComponent<ThemedGraphic>();
-            view._freshText = fresh.GetComponentInChildren<Text>();
+            view._fresh = new ArmedButton(fresh, CopyTable.ResumeStartFresh,
+                CopyTable.ResumeStartFreshConfirm);
             fresh.onClick.AddListener(view.OnStartFreshTapped);
 
-            var back = AddButton(rect, CopyTable.ResumeBack, -140,
+            var back = Ui.ScreenButton(rect, CopyTable.ResumeBack, -140,
                 ThemeSlot.ButtonFill, ThemeSlot.ButtonText);
             back.onClick.AddListener(() =>
             {
@@ -96,36 +98,15 @@ namespace Sudoku.Game.Screens
 
         /// <summary>
         /// The warning. Starting fresh is the one answer that destroys
-        /// something, so the first tap only says so and the second one means
-        /// it. Leaving, resuming, or coming back here later takes it back.
+        /// something, so the first tap only says so and the second one means it
+        /// - see <see cref="ArmedButton"/>. Leaving, resuming, or coming back
+        /// here later takes it back.
         /// </summary>
         void OnStartFreshTapped()
         {
-            if (!_freshArmed)
-            {
-                _freshArmed = true;
-                _freshText.text = CopyTable.ResumeStartFreshConfirm;
-                _freshFill.Use(ThemeSlot.WarnFill);
-                return;
-            }
-
-            var slot = _slot;
-            Disarm();
-            StartFreshConfirmed?.Invoke(slot);
+            if (_fresh.Tapped()) StartFreshConfirmed?.Invoke(_slot);
         }
 
-        void Disarm()
-        {
-            _freshArmed = false;
-            _freshText.text = CopyTable.ResumeStartFresh;
-            _freshFill.Use(ThemeSlot.ButtonFill);
-        }
-
-        static Button AddButton(Transform parent, string text, float y, ThemeSlot fill, ThemeSlot textSlot)
-        {
-            var button = Ui.Button(text, parent, text, 34, fill, textSlot);
-            Ui.Place((RectTransform)button.transform, new Vector2(0, y), new Vector2(640, 110));
-            return button;
-        }
+        void Disarm() => _fresh.Disarm();
     }
 }

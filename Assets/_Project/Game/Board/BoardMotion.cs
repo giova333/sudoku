@@ -13,18 +13,19 @@ namespace Sudoku.Game.Board
     /// what the player sees for free.
     ///
     /// Two things the stream cannot announce are handled either side of it. A
-    /// finished 3x3 box is worked out here from the board the session already
-    /// exposes; and an edit to a clue is a move the session *rejects*, so it
-    /// never reaches the stream at all - the presenter that was told "no" calls
-    /// <see cref="Refused"/>.
+    /// finished 3x3 box comes from a <see cref="BoxWatcher"/>, the same one the
+    /// audio's chime is built on; and an edit to a clue is a move the session
+    /// *rejects*, so it never reaches the stream at all - the presenter that was
+    /// told "no" calls <see cref="Refused"/>.
     /// </summary>
     public sealed class BoardMotion
     {
         readonly BoardView _board;
 
-        /// <summary>Which boxes were already finished, so a box pops once rather
-        /// than on every later move inside it.</summary>
-        readonly bool[] _boxComplete = new bool[BoardBoxes.Count];
+        /// <summary>The swell's half of a finished 3x3 box - the chime is the
+        /// other half, and both hang off one <see cref="BoxWatcher"/> so they
+        /// can never land on different moves.</summary>
+        readonly BoxWatcher _boxes;
 
         GameSession _session;
 
@@ -43,6 +44,7 @@ namespace Sudoku.Game.Board
         public BoardMotion(BoardView board)
         {
             _board = board ?? throw new ArgumentNullException(nameof(board));
+            _boxes = new BoxWatcher(PopBox);
         }
 
         /// <summary>
@@ -58,7 +60,7 @@ namespace Sudoku.Game.Board
             if (_session == null) return;
 
             _session.Emitted += OnGameEvent;
-            RefreshBoxes(false);
+            _boxes.Follow(_session);
         }
 
         /// <summary>
@@ -107,7 +109,7 @@ namespace Sudoku.Game.Board
                     // Restarting replays the same session object from its clues,
                     // so what "already finished" means has to be recounted
                     // rather than remembered.
-                    RefreshBoxes(false);
+                    _boxes.Refresh(false);
                     break;
 
                 case GameEventKind.CellPlaced:
@@ -119,7 +121,7 @@ namespace Sudoku.Game.Board
                     // A finished board is about to sweep the whole grid; one
                     // celebration is enough, and the box under the last digit is
                     // part of it either way.
-                    RefreshBoxes(e.EmptyCellCount > 0);
+                    _boxes.Refresh(e.EmptyCellCount > 0);
                     break;
 
                 case GameEventKind.MistakeMade:
@@ -129,32 +131,12 @@ namespace Sudoku.Game.Board
 
                 case GameEventKind.HintUsed:
                     Motions.Pop(_board.CellAt(e.CellIndex).transform, Motions.PopStrength);
-                    RefreshBoxes(e.EmptyCellCount > 0);
+                    _boxes.Refresh(e.EmptyCellCount > 0);
                     break;
 
                 case GameEventKind.UndoUsed:
-                    RefreshBoxes(false);
+                    _boxes.Refresh(false);
                     break;
-            }
-        }
-
-        /// <summary>
-        /// Recounts which boxes stand finished, and pops any that just became
-        /// so.
-        ///
-        /// All nine are recounted on every board change rather than only the box
-        /// that was touched, because undo can un-finish one - and nine passes
-        /// over nine cells, a few times a second at most, costs less than the
-        /// bookkeeping needed to avoid it.
-        /// </summary>
-        void RefreshBoxes(bool announce)
-        {
-            for (var box = 0; box < BoardBoxes.Count; box++)
-            {
-                var complete = BoardBoxes.IsComplete(_session, box);
-                if (complete && !_boxComplete[box] && announce) PopBox(box);
-
-                _boxComplete[box] = complete;
             }
         }
 
