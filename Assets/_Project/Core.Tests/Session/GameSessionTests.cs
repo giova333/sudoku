@@ -379,6 +379,35 @@ namespace Sudoku.Core.Tests.Session
         }
 
         [Test]
+        public void Undo_is_unlimited_while_the_puzzle_is_in_play()
+        {
+            var session = NewClassicSession();
+
+            // A note toggle is the cheapest undoable action there is and costs
+            // no heart, so the stack can be driven well past the depth a save
+            // payload keeps without the run ending on the way.
+            var actions = GameSession.PersistedHistoryLimit * 2;
+            for (var i = 0; i < actions; i++)
+                session.ToggleNote(3, i % 9 + 1);
+
+            Assert.That(session.UndoDepth, Is.EqualTo(actions));
+        }
+
+        [Test]
+        public void The_first_move_of_a_long_run_can_still_be_undone()
+        {
+            var session = NewClassicSession();
+            session.Place(2, 4); // cell 2 is empty in the classic puzzle
+            for (var i = 0; i < GameSession.PersistedHistoryLimit + 50; i++)
+                session.ToggleNote(3, i % 9 + 1);
+
+            while (session.Undo()) { }
+
+            Assert.That(session.ValueAt(2), Is.EqualTo(Board.Empty),
+                "the oldest move should still be reachable after a long run");
+        }
+
+        [Test]
         public void A_rejected_move_leaves_nothing_to_undo()
         {
             var session = NewClassicSession();

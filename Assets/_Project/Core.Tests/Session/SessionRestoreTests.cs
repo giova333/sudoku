@@ -111,17 +111,45 @@ namespace Sudoku.Core.Tests.Session
         }
 
         [Test]
+        public void A_snapshot_keeps_the_most_recent_moves_and_drops_the_oldest()
+        {
+            var session = NewClassicSession();
+            session.Place(2, 4); // the oldest action, on cell 2
+            for (var i = 0; i < GameSession.PersistedHistoryLimit; i++)
+                session.ToggleNote(3, i % 9 + 1);
+
+            var snapshot = session.Capture();
+
+            Assert.That(snapshot.History.Count, Is.EqualTo(GameSession.PersistedHistoryLimit));
+            Assert.That(snapshot.History[0].PrimaryIndex, Is.EqualTo(3),
+                "the trim should drop the move furthest from the player's next tap");
+        }
+
+        [Test]
+        public void Capping_the_written_stack_leaves_the_one_in_play_whole()
+        {
+            var session = NewClassicSession();
+            var actions = GameSession.PersistedHistoryLimit + 20;
+            for (var i = 0; i < actions; i++)
+                session.ToggleNote(3, i % 9 + 1);
+
+            session.Capture();
+
+            Assert.That(session.UndoDepth, Is.EqualTo(actions));
+        }
+
+        [Test]
         public void A_saved_undo_stack_deeper_than_the_limit_is_trimmed_on_restore()
         {
             var session = NewClassicSession();
             var snapshot = session.Capture();
-            for (var i = 0; i < GameSession.UndoHistoryLimit + 50; i++)
+            for (var i = 0; i < GameSession.PersistedHistoryLimit + 50; i++)
                 snapshot.History.Add(new BoardCommand(BoardCommandKind.ToggleNote, 2,
                     new List<BoardEdit> { new BoardEdit(2, Board.Empty, Board.Empty, 0, 1) }));
 
             var resumed = GameSession.Restore(ClassicPuzzle(), RulesConfig.Default, snapshot);
 
-            Assert.That(resumed.UndoDepth, Is.EqualTo(GameSession.UndoHistoryLimit));
+            Assert.That(resumed.UndoDepth, Is.EqualTo(GameSession.PersistedHistoryLimit));
         }
 
         [Test]

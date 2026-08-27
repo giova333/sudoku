@@ -30,6 +30,14 @@ namespace Sudoku.Game.Screens
 
         PuzzleResult _result;
 
+        /// <summary>
+        /// The line drawn for the solve in hand. Held rather than asked for
+        /// again on every render, because the picker is spending a pool that
+        /// never repeats within a session - drawing twice for one solve would
+        /// burn two lines to show one, and the first would never be read.
+        /// </summary>
+        string _reactionLine = string.Empty;
+
         public Action NextTapped;
         public Action HomeTapped;
 
@@ -102,6 +110,11 @@ namespace Sudoku.Game.Screens
         public void Show(PuzzleResult result)
         {
             _result = result ?? throw new ArgumentNullException(nameof(result));
+
+            // Once per result, here rather than in Render: the card is rendered
+            // again every time the navigator brings it up.
+            _reactionLine = Reaction != null ? Reaction(_result) ?? string.Empty : string.Empty;
+
             Render();
         }
 
@@ -130,7 +143,7 @@ namespace Sudoku.Game.Screens
                 _bestTheme.Use(ThemeSlot.Muted);
             }
 
-            _reaction.text = Reaction != null ? Reaction(_result) ?? string.Empty : string.Empty;
+            _reaction.text = _reactionLine;
         }
 
         static string Clock(float seconds)

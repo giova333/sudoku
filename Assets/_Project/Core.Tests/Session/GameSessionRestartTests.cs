@@ -152,6 +152,37 @@ namespace Sudoku.Core.Tests.Session
         }
 
         [Test]
+        public void Restarting_stocks_from_the_rules_as_they_stand_rather_than_as_they_were_dealt()
+        {
+            // The presenter writes a settings change into this same object
+            // rather than over it, so a restart under a changed mistake limit
+            // reaches the session in play. This is the mechanism that relies on.
+            var rules = RulesConfig.Default;
+            var session = NewSession(rules);
+
+            rules.Hearts = 5;
+            session.Restart();
+
+            Assert.That(session.HeartsRemaining, Is.EqualTo(5));
+        }
+
+        [Test]
+        public void A_mistake_limit_turned_off_before_a_restart_governs_the_new_run()
+        {
+            var rules = RulesConfig.Default;
+            rules.Hearts = 1;
+            var session = NewSession(rules);
+            session.Place(2, 7); // burns the only heart: the run is over
+
+            rules.MistakeLimitEnabled = false;
+            session.Restart();
+            session.Place(2, 7);
+
+            Assert.That(session.Status, Is.EqualTo(SessionStatus.InProgress),
+                "a run started over under no mistake limit cannot end out of hearts");
+        }
+
+        [Test]
         public void Restarting_leaves_a_paused_session_paused()
         {
             var session = NewSession();

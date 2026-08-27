@@ -108,22 +108,31 @@ namespace Sudoku.Game.Screens
             return view;
         }
 
-        public void Render(GameSession session, DifficultyTier tier, bool timerVisible)
+        /// <summary>
+        /// Redraws the strip. <paramref name="showMistakes"/> is the
+        /// immediate-feedback preference: a live count that ticks up the instant
+        /// a wrong digit lands is that feedback in another channel, so the
+        /// counter goes when the colour does.
+        /// </summary>
+        public void Render(GameSession session, DifficultyTier tier, bool timerVisible,
+            bool showMistakes)
         {
             _tierLabel.text = CopyTable.Tier(tier);
 
-            var minutes = Mathf.FloorToInt(session.ElapsedSeconds / 60f);
-            var seconds = Mathf.FloorToInt(session.ElapsedSeconds % 60f);
-            var clock = timerVisible ? $"{minutes:00}:{seconds:00}" : CopyTable.HudTimerHidden;
+            var elapsed = Ui.Clock(session.ElapsedSeconds);
+            var clock = timerVisible ? elapsed : CopyTable.HudTimerHidden;
 
-            _status.text = CopyTable.HudStatus(clock, session.HeartsRemaining,
-                session.MistakeCount, session.EmptyCellCount);
+            _status.text = showMistakes
+                ? CopyTable.HudStatus(clock, session.HeartsRemaining,
+                    session.MistakeCount, session.EmptyCellCount)
+                : CopyTable.HudStatusUnchecked(clock, session.HeartsRemaining,
+                    session.EmptyCellCount);
             _statusTheme.Use(session.HeartsRemaining <= 1 ? ThemeSlot.Danger : ThemeSlot.Muted);
 
             switch (session.Status)
             {
                 case SessionStatus.Completed:
-                    _banner.text = CopyTable.HudSolvedBanner($"{minutes:00}:{seconds:00}");
+                    _banner.text = CopyTable.HudSolvedBanner(elapsed);
                     _bannerTheme.Use(ThemeSlot.Celebrate);
                     break;
                 case SessionStatus.Failed:

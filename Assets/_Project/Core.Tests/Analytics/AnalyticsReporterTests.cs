@@ -86,6 +86,15 @@ namespace Sudoku.Core.Tests.Analytics
             return default;
         }
 
+        static AnalyticsEvent Last(RecordingService service, string name)
+        {
+            for (var i = service.Events.Count - 1; i >= 0; i--)
+                if (service.Events[i].Name == name) return service.Events[i];
+
+            Assert.Fail($"no {name} event was recorded; got {string.Join(", ", NamesOf(service))}");
+            return default;
+        }
+
         static double Number(AnalyticsEvent recorded, string key)
         {
             Assert.That(recorded.TryGet(key, out var parameter), Is.True,
@@ -219,6 +228,24 @@ namespace Sudoku.Core.Tests.Analytics
             Assert.That(Number(batch, "count"), Is.EqualTo(3d));
             Assert.That(Number(batch, "correct"), Is.EqualTo(2d));
             Assert.That(Number(batch, "wrong"), Is.EqualTo(1d));
+        }
+
+        [Test]
+        public void A_batch_describes_where_it_ended_and_not_where_the_one_before_it_did()
+        {
+            var service = new RecordingService();
+            var session = NewSession();
+            var reporter = Reporting(service, session);
+
+            PlaceCorrectly(session, 3);
+            reporter.Flush();
+            PlaceCorrectly(session, 2);
+            reporter.Flush();
+
+            var batch = Last(service, "cell_placed");
+            Assert.That(Number(batch, "count"), Is.EqualTo(2d));
+            Assert.That(Number(batch, "filled_cells"), Is.EqualTo(5d),
+                "a flushed batch must leave nothing of itself behind for the next one");
         }
 
         [Test]

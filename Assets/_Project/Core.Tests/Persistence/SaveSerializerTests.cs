@@ -166,7 +166,7 @@ namespace Sudoku.Core.Tests.Persistence
 
             var restored = RoundTripped(played, puzzle, rules);
 
-            Assert.That(restored.UndoDepth, Is.EqualTo(GameSession.UndoHistoryLimit));
+            Assert.That(restored.UndoDepth, Is.EqualTo(GameSession.PersistedHistoryLimit));
         }
 
         [Test]

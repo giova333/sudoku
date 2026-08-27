@@ -28,6 +28,18 @@ namespace Sudoku.Game.Board
 
         GameSession _session;
 
+        /// <summary>
+        /// Whether a wrong digit is answered at all. The shake is the spec's
+        /// redundant non-colour error signal, so it belongs behind the same
+        /// switch as the underline: a player who has turned immediate mistake
+        /// highlighting off has asked for a self-checked game, and a cell that
+        /// jumps tells them exactly what the colour would have.
+        ///
+        /// It does not touch the mistake system - the heart is still spent and
+        /// the run still ends at zero. Only the telling-off goes quiet.
+        /// </summary>
+        public bool AnnounceMistakes { get; set; } = true;
+
         public BoardMotion(BoardView board)
         {
             _board = board ?? throw new ArgumentNullException(nameof(board));
@@ -111,6 +123,7 @@ namespace Sudoku.Game.Board
                     break;
 
                 case GameEventKind.MistakeMade:
+                    if (!AnnounceMistakes) break;
                     Motions.Shake(_board.CellAt(e.CellIndex).transform);
                     break;
 

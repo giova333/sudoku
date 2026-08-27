@@ -136,15 +136,23 @@ namespace Sudoku.Game.Screens
         /// <summary>
         /// Greys out digits that are fully placed, and shows how many of each
         /// remain.
+        ///
+        /// <paramref name="showMistakes"/> is the immediate-feedback preference,
+        /// and the badge honours it because refusing to count a digit is a way
+        /// of saying it is wrong: a nine that stays on nine remaining names the
+        /// mistake as surely as painting it red would. Off, every filled cell
+        /// counts and the player checks their own work.
         /// </summary>
-        public void Render(GameSession session, bool notesMode)
+        public void Render(GameSession session, bool notesMode, bool showMistakes)
         {
             var placed = new int[10];
             for (var i = 0; i < Core.Model.Board.CellCount; i++)
             {
                 var value = session.ValueAt(i);
-                if (value != Core.Model.Board.Empty && !session.IsMistakeAt(i))
-                    placed[value]++;
+                if (value == Core.Model.Board.Empty) continue;
+                if (showMistakes && session.IsMistakeAt(i)) continue;
+
+                placed[value]++;
             }
 
             for (var digit = 1; digit <= 9; digit++)

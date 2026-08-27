@@ -24,6 +24,17 @@ namespace Sudoku.Game.Audio
         GameSession _session;
         int _hearts;
 
+        /// <summary>
+        /// Whether a wrong digit is answered out loud. Off, the buzz and the
+        /// firm impact go with the colour and the shake: immediate mistake
+        /// feedback is one announcement in several channels, and silencing one
+        /// of them while the rest still shout is no setting at all.
+        ///
+        /// The heart is still spent and the run still ends at zero - this hides
+        /// the feedback, it does not disable the mistake system.
+        /// </summary>
+        public bool AnnounceMistakes { get; set; } = true;
+
         public GameAudio(IAudioService audio)
         {
             _audio = audio ?? throw new ArgumentNullException(nameof(audio));
@@ -68,12 +79,18 @@ namespace Sudoku.Game.Audio
                     break;
 
                 case GameEventKind.MistakeMade:
+                    // The count is kept either way, so turning the sound back on
+                    // mid-puzzle picks up from the hearts that are actually left
+                    // rather than from the last one that was heard.
+                    var lost = e.HeartsRemaining < _hearts;
+                    _hearts = e.HeartsRemaining;
+                    if (!AnnounceMistakes) break;
+
                     // A mistake that cost a heart is a different event to the
                     // player than one that did not, so it gets its own sound
                     // rather than the same buzz twice.
-                    _audio.Play(e.HeartsRemaining < _hearts ? Sfx.HeartLost : Sfx.Error);
+                    _audio.Play(lost ? Sfx.HeartLost : Sfx.Error);
                     _audio.Impact(Haptic.Firm);
-                    _hearts = e.HeartsRemaining;
                     break;
 
                 case GameEventKind.NoteToggled:

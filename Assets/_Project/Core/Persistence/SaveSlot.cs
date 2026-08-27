@@ -60,6 +60,22 @@ namespace Sudoku.Core.Persistence
         public bool CanResume => Session != null && Session.Status == SessionStatus.InProgress;
 
         /// <summary>
+        /// True when the run held here ended out of hearts. There is nothing to
+        /// carry on, but the puzzle itself is intact and can be played again
+        /// from its clues - which is why losing keeps the slot rather than
+        /// clearing it. A Continue button must not offer this; choosing the
+        /// difficulty again is what picks it up.
+        /// </summary>
+        public bool CanRestart => Session != null && Session.Status == SessionStatus.Failed;
+
+        /// <summary>
+        /// The puzzle this slot holds, named by the bank it was dealt from and
+        /// its place in it. Bookkeeping rather than truth - a re-bake shifts
+        /// every index - which is exactly the granularity analytics wants.
+        /// </summary>
+        public string PuzzleId => BankName + "#" + BankIndex;
+
+        /// <summary>
         /// How long the player has been at this puzzle. A Continue button has
         /// to quote it before anything has been restored, so it is answered off
         /// the slot rather than by rebuilding a session to ask.

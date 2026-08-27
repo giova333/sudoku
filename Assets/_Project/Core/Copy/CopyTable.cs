@@ -106,6 +106,15 @@ namespace Sudoku.Core.Copy
         public static string HudStatus(string clock, int hearts, int mistakes, int remaining) =>
             $"{clock}    Hearts {hearts}    Mistakes {mistakes}    Left {remaining}";
 
+        /// <summary>
+        /// The same strip with the mistake counter left out, for a player who
+        /// has turned immediate mistake feedback off. A count that climbs the
+        /// moment a wrong digit lands is that feedback written in numbers, so it
+        /// goes with the colour rather than outliving it.
+        /// </summary>
+        public static string HudStatusUnchecked(string clock, int hearts, int remaining) =>
+            $"{clock}    Hearts {hearts}    Left {remaining}";
+
         public static string HudSolvedBanner(string clock) => $"Solved in {clock}";
 
         public const string HudFailedBanner = "Out of hearts";
@@ -303,6 +312,7 @@ namespace Sudoku.Core.Copy
             HudBack, HudPause, HudSettings, HudTimerHidden, HudFailedBanner,
             PadUndo, PadErase, PadNotes, PadHint, PadHintFill,
             HudStatus("00:00", 3, 0, 81),
+            HudStatusUnchecked("00:00", 3, 81),
             HudSolvedBanner("00:00"),
             PadHintCount(3),
         };

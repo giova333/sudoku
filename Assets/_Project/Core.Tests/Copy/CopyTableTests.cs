@@ -91,6 +91,19 @@ namespace Sudoku.Core.Tests.Copy
         }
 
         [Test]
+        public void The_status_strip_carries_no_mistake_count_for_a_self_checked_game()
+        {
+            // Story 21. A count that climbs the instant a wrong digit lands is
+            // immediate mistake feedback written in numbers, so a player who has
+            // turned that feedback off must not be handed it in the HUD.
+            var strip = CopyTable.HudStatusUnchecked("04:12", 3, 27);
+
+            Assert.That(strip.Contains("Mistakes"), Is.False, $"the count survived: {strip}");
+            Assert.That(strip.Contains("Hearts 3"), Is.True,
+                "hearts are a resource the player is spending, not a telling-off");
+        }
+
+        [Test]
         public void Every_difficulty_tier_has_a_name()
         {
             foreach (DifficultyTier tier in Enum.GetValues(typeof(DifficultyTier)))

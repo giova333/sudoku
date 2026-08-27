@@ -68,5 +68,56 @@ namespace Sudoku.Core.Tests.Persistence
 
             Assert.That(slot.ElapsedSeconds, Is.Zero);
         }
+
+        [Test]
+        public void A_run_that_ended_out_of_hearts_is_not_offered_to_be_continued()
+        {
+            var data = new SaveData();
+            var slot = SlotFor(DifficultyTier.Hard);
+            slot.Session.Status = SessionStatus.Failed;
+            data.PutSlot(slot);
+
+            Assert.That(data.ResumableFor(DifficultyTier.Hard), Is.Null,
+                "there is nothing to carry on with once the hearts are gone");
+            Assert.That(data.MostRecent(), Is.Null);
+        }
+
+        [Test]
+        public void A_run_that_ended_out_of_hearts_keeps_its_puzzle_to_be_started_over()
+        {
+            var data = new SaveData();
+            var slot = SlotFor(DifficultyTier.Hard);
+            slot.Session.Status = SessionStatus.Failed;
+            data.PutSlot(slot);
+
+            var kept = data.SlotFor(DifficultyTier.Hard);
+            Assert.That(kept, Is.Not.Null, "losing must not throw the puzzle away");
+            Assert.That(kept.CanRestart, Is.True);
+        }
+
+        [Test]
+        public void A_puzzle_still_being_played_is_not_offered_to_be_started_over()
+        {
+            Assert.That(SlotFor(DifficultyTier.Easy).CanRestart, Is.False);
+        }
+
+        [Test]
+        public void A_finished_puzzle_is_not_offered_to_be_started_over()
+        {
+            var slot = SlotFor(DifficultyTier.Easy);
+            slot.Session.Status = SessionStatus.Completed;
+
+            Assert.That(slot.CanRestart, Is.False,
+                "a solved board is finished with, not waiting to be replayed");
+        }
+
+        [Test]
+        public void A_slot_names_its_puzzle_by_the_bank_it_was_dealt_from()
+        {
+            var slot = SaveSlot.ForTier(DifficultyTier.Expert, "main-Expert", 42,
+                ClassicPuzzle(), RulesConfig.Default);
+
+            Assert.That(slot.PuzzleId, Is.EqualTo("main-Expert#42"));
+        }
     }
 }

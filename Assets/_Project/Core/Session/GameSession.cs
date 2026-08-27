@@ -17,10 +17,13 @@ namespace Sudoku.Core.Session
     public sealed class GameSession
     {
         /// <summary>
-        /// How far back undo reaches. Deep enough that no player meets it in
-        /// practice, shallow enough to keep a save payload small.
+        /// How much of the undo stack is written down. Undo itself is unlimited
+        /// while the puzzle is in play - a player who has taken four hundred
+        /// actions can walk back every one of them - but a save payload has to
+        /// stay small, so a snapshot keeps only the most recent moves. The cap
+        /// is deep enough that nobody resumes to find the step they wanted gone.
         /// </summary>
-        public const int UndoHistoryLimit = 200;
+        public const int PersistedHistoryLimit = 200;
 
         readonly Puzzle _puzzle;
         readonly RulesConfig _rules;
@@ -108,8 +111,8 @@ namespace Sudoku.Core.Session
 
         void Adopt(SessionSnapshot snapshot)
         {
-            CopyCells(snapshot.Values, _values, "values");
-            CopyCells(snapshot.Notes, _notes, "notes");
+            CopyCells(snapshot.Values, _values, "values", nameof(snapshot));
+            CopyCells(snapshot.Notes, _notes, "notes", nameof(snapshot));
 
             _history.Clear();
             if (snapshot.History != null)
@@ -119,7 +122,7 @@ namespace Sudoku.Core.Session
 
             // A save written by a build with a deeper cap must not hand this
             // one a stack deeper than the one it promises.
-            while (_history.Count > UndoHistoryLimit)
+            while (_history.Count > PersistedHistoryLimit)
                 _history.RemoveAt(0);
 
             ElapsedSeconds = snapshot.ElapsedSeconds;
@@ -133,11 +136,14 @@ namespace Sudoku.Core.Session
             _emptyCells = CountEmpty();
         }
 
-        static void CopyCells(int[] source, int[] destination, string what)
+        /// <summary><paramref name="parameter"/> is the caller's own argument
+        /// name, so the exception blames the snapshot that was handed in rather
+        /// than a private helper nobody passed anything to.</summary>
+        static void CopyCells(int[] source, int[] destination, string what, string parameter)
         {
             if (source == null || source.Length != Board.CellCount)
                 throw new ArgumentException(
-                    $"A snapshot's {what} must hold {Board.CellCount} cells.", "snapshot");
+                    $"A snapshot's {what} must hold {Board.CellCount} cells.", parameter);
 
             Array.Copy(source, destination, Board.CellCount);
         }
@@ -146,12 +152,17 @@ namespace Sudoku.Core.Session
         /// A copy of everything that makes this session what it is. The arrays
         /// and the stack are cloned, so a snapshot handed to a background writer
         /// is not disturbed by the moves the player makes while it is in flight.
+        ///
+        /// This is where the undo stack is capped - see
+        /// <see cref="PersistedHistoryLimit"/>. The stack in memory is whole;
+        /// only the written copy is trimmed, and it is trimmed from the far end,
+        /// so what survives is the moves the player is most likely to reach for.
         /// </summary>
         public SessionSnapshot Capture() => new SessionSnapshot
         {
             Values = (int[])_values.Clone(),
             Notes = (int[])_notes.Clone(),
-            History = new List<BoardCommand>(_history),
+            History = PersistableHistory(),
             ElapsedSeconds = ElapsedSeconds,
             HeartsRemaining = HeartsRemaining,
             HintsRemaining = HintsRemaining,
@@ -161,6 +172,16 @@ namespace Sudoku.Core.Session
             IsPaused = IsPaused,
             Started = _started
         };
+
+        /// <summary>The most recent <see cref="PersistedHistoryLimit"/> commands,
+        /// oldest first - the whole stack when it is shallower than that.</summary>
+        List<BoardCommand> PersistableHistory()
+        {
+            var skip = _history.Count - PersistedHistoryLimit;
+            if (skip <= 0) return new List<BoardCommand>(_history);
+
+            return _history.GetRange(skip, PersistedHistoryLimit);
+        }
 
         /// <summary>
         /// Everything that happens during play. Analytics and, later, meta
@@ -196,13 +217,15 @@ namespace Sudoku.Core.Session
         /// Nothing is emitted: the run is the same run, and telling analytics a
         /// puzzle started twice would corrupt every funnel built on it.
         /// </summary>
-        public bool ContinueWithMoreHearts(int hearts = 1)
+        public bool ContinueWithMoreHearts()
         {
             if (Status != SessionStatus.Failed)
                 return false;
-            if (hearts <= 0)
-                return false;
-            if (_consumables.Refill(Consumable.Heart, hearts) <= 0)
+
+            // One heart, always. A variable refill is a pricing decision, and
+            // there is nothing selling hearts to make it - so the number stays
+            // out of the rules until something is entitled to choose it.
+            if (_consumables.Refill(Consumable.Heart, 1) <= 0)
                 return false;
 
             Status = SessionStatus.InProgress;
@@ -731,9 +754,11 @@ namespace Sudoku.Core.Session
             PendingHint = null;
 
             command.Apply(_values, _notes);
+
+            // Uncapped on purpose. Undo is unlimited during play; the only
+            // reason to forget a move is that a save payload has to stay small,
+            // and that is Capture's problem rather than the player's.
             _history.Add(command);
-            if (_history.Count > UndoHistoryLimit)
-                _history.RemoveAt(0);
         }
 
         static int MaskOf(int digit) => 1 << (digit - 1);

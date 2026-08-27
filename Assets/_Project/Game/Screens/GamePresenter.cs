@@ -72,13 +72,10 @@ namespace Sudoku.Game.Screens
         public DifficultyTier Tier => _tier;
 
         /// <summary>
-        /// Which puzzle is in play, as its bank and index. Null before the first
-        /// deal. The bank reference is bookkeeping rather than truth (a re-bake
-        /// shifts every index), which is exactly the granularity analytics
-        /// wants: it names the puzzle within the content that produced it.
+        /// Which puzzle is in play, or null before the first deal. How a puzzle
+        /// is named is the slot's business - see <see cref="SaveSlot.PuzzleId"/>.
         /// </summary>
-        public string PuzzleId =>
-            _slot == null ? null : _slot.BankName + "#" + _slot.BankIndex;
+        public string PuzzleId => _slot == null ? null : _slot.PuzzleId;
 
         /// <summary>
         /// Whether the session in hand is still playable. Leaving the game
@@ -120,6 +117,17 @@ namespace Sudoku.Game.Screens
             // already been answered before this is built.
             _motion = new BoardMotion(_board);
 
+            // Immediate mistake feedback is one announcement made in five
+            // channels - the underline, the shake, the buzz, the numpad badge
+            // and the HUD counter - and story 21 asks for the announcement, not
+            // for the colour. The three that listen to the event stream are told
+            // here; the two that are drawn read the preference as they render.
+            _settings.HighlightMistakes.Observe(on =>
+            {
+                if (_sounds != null) _sounds.AnnounceMistakes = on;
+                _motion.AnnounceMistakes = on;
+            });
+
             _board.CellTapped += OnCellTapped;
             _numpad.DigitTapped += OnDigitTapped;
             _numpad.DigitHeld += OnDigitHeld;
@@ -145,7 +153,31 @@ namespace Sudoku.Game.Screens
                 return;
             }
 
+            // A run that ended out of hearts keeps its slot, and this is what
+            // that is for: choosing the difficulty again plays the same puzzle
+            // over rather than dealing a new one on top of it. Dealing would
+            // destroy the puzzle the player lost to, which is the one thing a
+            // player who has just lost is most likely to want another go at -
+            // and it would spend a puzzle from a bank that never repeats.
+            if (waiting != null && waiting.CanRestart)
+            {
+                StartOver(waiting);
+                return;
+            }
+
             Deal(tier);
+        }
+
+        /// <summary>
+        /// Puts the player back in front of a lost puzzle, reset to its clues.
+        /// The slot is taken on exactly as a resume would take it, and then
+        /// restarted - so the run announces itself as a start, and the reset
+        /// board is what gets written back over the failed one.
+        /// </summary>
+        void StartOver(SaveSlot slot)
+        {
+            Take(slot);
+            Restart();
         }
 
         /// <summary>
@@ -164,6 +196,17 @@ namespace Sudoku.Game.Screens
             // gain nothing and drop whatever has happened since.
             if (_slot != null && _slot.SlotId == slot.SlotId && HasSession) return;
 
+            Take(slot);
+        }
+
+        /// <summary>
+        /// Makes a saved slot the puzzle in hand and hands its session to
+        /// <see cref="Adopt"/>. Shared by resuming and by starting a lost puzzle
+        /// over, because which of the two it is only changes what happens to the
+        /// session afterwards.
+        /// </summary>
+        void Take(SaveSlot slot)
+        {
             _tier = slot.Tier;
             _slot = slot;
 
@@ -294,11 +337,38 @@ namespace Sudoku.Game.Screens
         {
             if (_session == null) return;
 
+            RereadRules();
+
             _session.Restart();
             _selected = -1;
             _notesMode = false;
             Save();
             Render();
+        }
+
+        /// <summary>
+        /// Brings the puzzle's rules back into line with the settings screen.
+        ///
+        /// <see cref="GameSettings.BuildRules"/> snapshots the mistake limit at
+        /// deal time so a toggle cannot rewrite a game already being scored -
+        /// but a restart is not that game carrying on, it is the same puzzle
+        /// from the first tap, which is far closer to a new deal. A player who
+        /// turns the limit off and asks for the puzzle again should get the run
+        /// they just asked for rather than the one they were already losing.
+        ///
+        /// Written into the rules object rather than over it: the session and
+        /// the slot both hold this one instance, and replacing it would leave
+        /// the session playing to rules nobody can see any more.
+        /// </summary>
+        void RereadRules()
+        {
+            if (_rules == null) return;
+
+            var current = _settings.BuildRules();
+            _rules.Hearts = current.Hearts;
+            _rules.Hints = current.Hints;
+            _rules.MistakeLimitEnabled = current.MistakeLimitEnabled;
+            _rules.AutoRemoveNotes = current.AutoRemoveNotes;
         }
 
         /// <summary>
@@ -333,7 +403,8 @@ namespace Sudoku.Game.Screens
             if (_session == null || !IsVisible) return;
 
             _session.Tick(Time.unscaledDeltaTime);
-            _hud.Render(_session, _tier, _settings.TimerVisible.Value);
+            _hud.Render(_session, _tier, _settings.TimerVisible.Value,
+                _settings.HighlightMistakes.Value);
         }
 
         void OnApplicationPause(bool paused)
@@ -492,9 +563,11 @@ namespace Sudoku.Game.Screens
 
         void Render()
         {
-            _board.Render(_session, _puzzle, _selected, _settings.HighlightMistakes.Value);
-            _numpad.Render(_session, _notesMode);
-            _hud.Render(_session, _tier, _settings.TimerVisible.Value);
+            var showMistakes = _settings.HighlightMistakes.Value;
+
+            _board.Render(_session, _puzzle, _selected, showMistakes);
+            _numpad.Render(_session, _notesMode, showMistakes);
+            _hud.Render(_session, _tier, _settings.TimerVisible.Value, showMistakes);
         }
 
         /// <summary>
@@ -570,8 +643,11 @@ namespace Sudoku.Game.Screens
 
         /// <summary>
         /// The last heart is gone. The puzzle stays in its slot so that starting
-        /// it over is one tap away; a slot whose session failed is not
-        /// resumable, so Continue does not offer it either.
+        /// it over is one tap away: a failed slot is not resumable, so Continue
+        /// never offers a dead board, but choosing the difficulty again finds it
+        /// and plays it from its clues - see <see cref="StartPuzzle"/>. Leaving
+        /// the game-over screen therefore costs the puzzle nothing, which is
+        /// what makes the way out of it non-punitive.
         /// </summary>
         void OnHeartsDepleted(GameEvent e)
         {

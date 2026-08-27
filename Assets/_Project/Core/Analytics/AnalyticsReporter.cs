@@ -35,10 +35,7 @@ namespace Sudoku.Core.Analytics
 
         GameSession _session;
 
-        int _placed;
-        int _placedCorrect;
-        float _placedElapsed;
-        int _placedFilled;
+        Placements _batch;
 
         public AnalyticsReporter(IAnalyticsService service)
         {
@@ -178,33 +175,60 @@ namespace Sudoku.Core.Analytics
 
         void Batch(GameEvent e)
         {
-            _placed++;
-            if (e.WasCorrect) _placedCorrect++;
+            _batch.Add(e);
 
-            // The batch is described by where it ended, so a run of placements
-            // is still pinned to a point in the solve.
-            _placedElapsed = e.ElapsedSeconds;
-            _placedFilled = e.FilledCellCount;
-
-            if (_placed >= CellPlacementBatchSize)
+            if (_batch.Count >= CellPlacementBatchSize)
                 FlushPlacements();
         }
 
         void FlushPlacements()
         {
-            if (_placed == 0) return;
+            if (_batch.Count == 0) return;
 
-            var count = _placed;
-            var correct = _placedCorrect;
-            _placed = 0;
-            _placedCorrect = 0;
+            var batch = _batch;
+
+            // Emptied before the event goes out, and all four numbers at once:
+            // half a batch left behind would describe the next one, pinning it
+            // to a point in the solve that has already been reported.
+            _batch = default;
 
             Send("cell_placed",
-                AnalyticsParameter.Of("count", count),
-                AnalyticsParameter.Of("correct", correct),
-                AnalyticsParameter.Of("wrong", count - correct),
-                AnalyticsParameter.Of("filled_cells", _placedFilled),
-                AnalyticsParameter.Of("elapsed_seconds", _placedElapsed));
+                AnalyticsParameter.Of("count", batch.Count),
+                AnalyticsParameter.Of("correct", batch.Correct),
+                AnalyticsParameter.Of("wrong", batch.Count - batch.Correct),
+                AnalyticsParameter.Of("filled_cells", batch.Filled),
+                AnalyticsParameter.Of("elapsed_seconds", batch.Elapsed));
+        }
+
+        /// <summary>
+        /// The placements standing in for one <c>cell_placed</c> event. The four
+        /// numbers travel together and are emptied together, so they are one
+        /// value rather than four fields that have to be remembered as a set.
+        /// </summary>
+        struct Placements
+        {
+            /// <summary>How many placements this batch stands for.</summary>
+            public int Count;
+
+            /// <summary>How many of them were the right digit.</summary>
+            public int Correct;
+
+            /// <summary>
+            /// Where the batch ended, so a run of placements is still pinned to
+            /// a point in the solve.
+            /// </summary>
+            public float Elapsed;
+
+            public int Filled;
+
+            public void Add(GameEvent e)
+            {
+                Count++;
+                if (e.WasCorrect) Correct++;
+
+                Elapsed = e.ElapsedSeconds;
+                Filled = e.FilledCellCount;
+            }
         }
 
         /// <summary>
