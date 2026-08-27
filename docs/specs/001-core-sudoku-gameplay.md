@@ -532,3 +532,36 @@ stays the authoritative description of what exists.
     fixture (`Core.Tests/Fixtures/SavePayloads.cs`) means the migration hook is
     exercised by a payload the current serializer cannot produce, which is the
     only way the hook is worth anything.
+
+18. **`IConsumableService` holds the hearts and hints rather than sitting beside
+    them.** The spec asks that both be spent exclusively through the interface.
+    An interface that only *offers* a spend method leaves the counters where
+    they were, and gameplay can still decrement them - which makes the seam
+    decorative exactly when it matters. `GameSession` therefore keeps no counter
+    of its own: `HeartsRemaining` and `HintsRemaining` read straight off the
+    service, a mistake asks it to spend a heart, a taken hint asks it to spend a
+    hint before the board moves, and dealing, restarting and restoring go
+    through `Reset`. Handing the session a service that refuses every spend
+    leaves the hearts untouched and the run alive, which is how
+    `Core.Tests/Session/ConsumableSeamTests.cs` proves nothing routes around it.
+    The interface lives in Core because what a heart costs is a rule. The
+    shipping implementation, `LocalConsumables`, refuses every refill and says
+    so through `CanRefill`, so the out-of-hearts screen can present the offer
+    and disable it rather than hide it.
+
+19. **The completion flow is an object with an empty stage in it.**
+    `Game/Session/CompletionFlow.cs` runs three named stages - board cascade,
+    interstitial, results card - each taking a continuation, because the two
+    still empty are both asynchronous. A null stage is skipped, so today
+    completion reaches the results card immediately while the seam is a real,
+    named, findable place rather than a comment. Ticket #10 fills the first
+    stage; the second is reserved and deliberately never assigned. Heart
+    depletion does not go through the flow: there is no cascade to play, and an
+    ad after a loss is the one place an interstitial should not be.
+
+20. **The save schema is at version 3.** Version 3 adds the best time per
+    difficulty under `best`. Records go in the save file rather than
+    `PlayerPrefs` so that a record and the puzzles that produced it are backed
+    up, moved and cleared together. `SavePayloads.SchemaVersionTwo` is checked
+    in alongside the version-1 fixture so the new migration step is exercised by
+    a payload predating records rather than by one the current serializer wrote.

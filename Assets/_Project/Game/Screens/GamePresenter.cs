@@ -35,6 +35,20 @@ namespace Sudoku.Game.Screens
         int _selected = -1;
         bool _notesMode;
 
+        /// <summary>
+        /// The puzzle was solved. Carries everything the results card shows, so
+        /// the card needs no reference to a session that is about to be put
+        /// down. What happens next - the completion flow, and the interstitial
+        /// seam inside it - is the composition root's decision, not gameplay's.
+        /// </summary>
+        public Action<PuzzleResult> Solved;
+
+        /// <summary>
+        /// The last heart went. Carries the tier and the run's mistake count,
+        /// which is all the out-of-hearts screen shows.
+        /// </summary>
+        public Action<DifficultyTier, int> OutOfHearts;
+
         public RectTransform Root => _root;
 
         /// <summary>
@@ -324,21 +338,85 @@ namespace Sudoku.Game.Screens
         }
 
         /// <summary>
-        /// The console stands in for analytics until the real service lands, but
-        /// the event stream it listens to is the shipping one.
+        /// The two events that end a run. Everything else on the stream is
+        /// still nobody's business here - the console stands in for analytics
+        /// until that service lands, and the stream it listens to is the
+        /// shipping one.
         /// </summary>
-        static void OnGameEvent(GameEvent e)
+        void OnGameEvent(GameEvent e)
         {
             switch (e.Kind)
             {
                 case GameEventKind.PuzzleCompleted:
-                    Debug.Log($"[sudoku] completed in {e.ElapsedSeconds:F0}s, " +
-                              $"{e.MistakeCount} mistakes, {e.HintsUsed} hints");
+                    OnCompleted(e);
                     break;
                 case GameEventKind.HeartsDepleted:
-                    Debug.Log("[sudoku] out of hearts");
+                    OnHeartsDepleted(e);
                     break;
             }
+        }
+
+        /// <summary>
+        /// The puzzle is finished, so the slot holding it is finished with:
+        /// dropping it is what stops Continue offering a solved board, and
+        /// forgetting it here rather than in the save layer is what keeps the
+        /// autosave that runs a moment later from writing it straight back.
+        ///
+        /// The record is counted before the card is built, so the card shows the
+        /// best time including this solve - a new record and the number that set
+        /// it are then the same number.
+        /// </summary>
+        void OnCompleted(GameEvent e)
+        {
+            _slot = null;
+
+            var best = 0f;
+            var isNewBest = false;
+
+            if (_saves != null)
+            {
+                _saves.Clear(_tier);
+                isNewBest = _saves.Data.RecordBestTime(_tier, e.ElapsedSeconds);
+                best = _saves.Data.BestTimeFor(_tier).Seconds;
+                _saves.Touch();
+            }
+
+            Solved?.Invoke(new PuzzleResult(_tier, e.ElapsedSeconds, e.MistakeCount,
+                e.HintsUsed, best, isNewBest));
+        }
+
+        /// <summary>
+        /// The last heart is gone. The puzzle stays in its slot so that starting
+        /// it over is one tap away; a slot whose session failed is not
+        /// resumable, so Continue does not offer it either.
+        /// </summary>
+        void OnHeartsDepleted(GameEvent e)
+        {
+            Save();
+            OutOfHearts?.Invoke(_tier, e.MistakeCount);
+        }
+
+        /// <summary>
+        /// Whether more hearts can be had right now, asked of the service the
+        /// session spends from rather than of a second one that could disagree
+        /// with it. False for the whole of this milestone.
+        /// </summary>
+        public bool CanRefillHearts =>
+            _session != null && _session.Consumables.CanRefill(Consumable.Heart);
+
+        /// <summary>
+        /// Carries on a run that ended out of hearts, if and only if the
+        /// consumable service supplies them. Returns false today; the day it
+        /// returns true, nothing here changes.
+        /// </summary>
+        public bool ContinueWithMoreHearts()
+        {
+            if (_session == null || !_session.ContinueWithMoreHearts())
+                return false;
+
+            Save();
+            Render();
+            return true;
         }
     }
 }
