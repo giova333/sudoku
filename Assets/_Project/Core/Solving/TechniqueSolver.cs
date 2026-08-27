@@ -107,12 +107,25 @@ namespace Sudoku.Core.Solving
             return true;
         }
 
+        /// <summary>
+        /// The step that applies to an explicitly supplied candidate grid.
+        /// Exposed so tests can drive the solver one deduction at a time and
+        /// check each one against the puzzle's real solution.
+        /// </summary>
+        public static SolveStep NextStepForTesting(int[] grid, int[] candidates, ConstraintSet constraints)
+            => NextStep(grid, candidates, constraints);
+
         internal static SolveStep NextStep(int[] grid, int[] candidates, ConstraintSet constraints)
         {
             // Techniques are tried easiest-first, so a step is always reported
             // as the simplest way to see it.
             return FindNakedSingle(grid, candidates, constraints)
-                ?? FindHiddenSingle(grid, candidates, constraints);
+                ?? FindHiddenSingle(grid, candidates, constraints)
+                ?? Techniques.LockedCandidates(grid, candidates, constraints)
+                ?? Techniques.NakedSubset(grid, candidates, constraints, 2, Technique.NakedPair)
+                ?? Techniques.HiddenSubset(grid, candidates, constraints, 2, Technique.HiddenPair)
+                ?? Techniques.NakedSubset(grid, candidates, constraints, 3, Technique.NakedTriple)
+                ?? Techniques.XWing(grid, candidates, constraints);
         }
 
         static SolveStep FindNakedSingle(int[] grid, int[] candidates, ConstraintSet constraints)

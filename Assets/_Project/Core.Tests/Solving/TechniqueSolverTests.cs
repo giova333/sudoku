@@ -153,5 +153,76 @@ namespace Sudoku.Core.Tests.Solving
             Assert.That(counted, Is.EqualTo(report.TotalSteps));
         }
 
+
+        /// <summary>
+        /// Box 0 has 1,2,3 across row 1 and 4,5,6 across row 2, so the digits
+        /// 7, 8 and 9 must all live in row 0 of that box. They are therefore
+        /// barred from the rest of row 0. Nothing here is a naked or hidden
+        /// single: r0c0, r0c1 and r0c2 each hold exactly the candidates
+        /// {7,8,9}, and every other digit has several homes in every group.
+        /// </summary>
+        const string LockedCandidatesGrid =
+            "000000000" +
+            "123000000" +
+            "456000000" +
+            "000000000" +
+            "000000000" +
+            "000000000" +
+            "000000000" +
+            "000000000" +
+            "000000000";
+
+        [Test]
+        public void Digits_confined_to_one_row_of_a_box_are_barred_from_the_rest_of_that_row()
+        {
+            var step = TechniqueSolver.NextStep(Grid(LockedCandidatesGrid), ConstraintSet.Classic);
+
+            Assert.That(step, Is.Not.Null);
+            Assert.That(step.Technique, Is.EqualTo(Technique.LockedCandidates));
+            Assert.That(step.Digit, Is.AnyOf(7, 8, 9));
+            Assert.That(step.Eliminations, Is.Not.Null.And.Not.Empty);
+
+            foreach (var e in step.Eliminations)
+            {
+                Assert.That(e.Cell / 9, Is.EqualTo(0), "eliminations stay in row 0");
+                Assert.That(e.Cell % 9, Is.GreaterThan(2), "and outside box 0");
+                Assert.That(e.Digit, Is.EqualTo(step.Digit));
+            }
+        }
+
+        [Test]
+        public void The_locked_candidates_grid_offers_no_easier_step()
+        {
+            var candidates = TechniqueSolver.BuildCandidates(Grid(LockedCandidatesGrid), ConstraintSet.Classic);
+
+            // Each of r0c0..r0c2 holds exactly {7,8,9} - three candidates, so
+            // no naked single is available to fire first.
+            foreach (var cell in new[] { 0, 1, 2 })
+                Assert.That(TechniqueSolver.PopCountOf(candidates[cell]), Is.EqualTo(3));
+        }
+
+        [Test]
+        public void Every_technique_the_solver_claims_to_know_actually_fires()
+        {
+            // Guards against a technique being declared but never reachable -
+            // dead code that silently mis-grades every puzzle above its tier.
+            var fired = new System.Collections.Generic.HashSet<Technique>();
+
+            for (var seed = 1; seed <= 120 && fired.Count < 7; seed++)
+            {
+                var puzzle = Sudoku.Core.Generation.PuzzleGenerator.Generate(seed, ConstraintSet.Classic);
+                var clues = new int[Board.CellCount];
+                for (var i = 0; i < Board.CellCount; i++) clues[i] = puzzle.ClueAt(i);
+
+                var report = TechniqueSolver.Solve(clues, ConstraintSet.Classic);
+                foreach (Technique t in System.Enum.GetValues(typeof(Technique)))
+                    if (report.CountOf(t) > 0)
+                        fired.Add(t);
+            }
+
+            foreach (Technique t in System.Enum.GetValues(typeof(Technique)))
+                Assert.That(fired, Contains.Item(t), $"{t} never fired on any generated puzzle");
+        }
+
     }
 }

@@ -14,11 +14,54 @@ namespace Sudoku.Core.Model
     {
         readonly int[][] _groups;
         readonly int[][] _peers;
+        GroupIntersection[] _intersections;
 
         public ConstraintSet(int[][] groups)
         {
             _groups = groups ?? throw new ArgumentNullException(nameof(groups));
             _peers = BuildPeers(groups);
+        }
+
+        /// <summary>
+        /// Row groups, if this shape has rows. Populated for the classic board;
+        /// exotic constraint sets may leave it empty, in which case techniques
+        /// that reason about lines simply never fire.
+        /// </summary>
+        public int[][] Rows { get; private set; } = new int[0][];
+
+        /// <summary>Column groups, if this shape has columns. See <see cref="Rows"/>.</summary>
+        public int[][] Columns { get; private set; } = new int[0][];
+
+        /// <summary>
+        /// Every pair of groups sharing two or more cells, with those shared
+        /// cells. This is all "locked candidates" needs: if a digit's only homes
+        /// in group A fall inside the overlap with B, it can be struck from the
+        /// rest of B. Expressing it this way keeps the technique correct for any
+        /// constraint set rather than only for boxes and lines.
+        /// </summary>
+        public GroupIntersection[] Intersections =>
+            _intersections ?? (_intersections = BuildIntersections(_groups));
+
+        static GroupIntersection[] BuildIntersections(int[][] groups)
+        {
+            var result = new List<GroupIntersection>();
+
+            for (var a = 0; a < groups.Length; a++)
+            for (var b = 0; b < groups.Length; b++)
+            {
+                if (a == b) continue;
+
+                var shared = new List<int>();
+                var setB = new HashSet<int>(groups[b]);
+                foreach (var cell in groups[a])
+                    if (setB.Contains(cell))
+                        shared.Add(cell);
+
+                if (shared.Count >= 2 && shared.Count < groups[a].Length)
+                    result.Add(new GroupIntersection(groups[a], groups[b], shared.ToArray()));
+            }
+
+            return result.ToArray();
         }
 
         /// <summary>All groups that must contain distinct values.</summary>
@@ -89,7 +132,10 @@ namespace Sudoku.Core.Model
                 groups.Add(group);
             }
 
-            return new ConstraintSet(groups.ToArray());
+            var set = new ConstraintSet(groups.ToArray());
+            set.Rows = groups.GetRange(0, Board.Size).ToArray();
+            set.Columns = groups.GetRange(Board.Size, Board.Size).ToArray();
+            return set;
         }
     }
 }
