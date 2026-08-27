@@ -2,6 +2,7 @@ using System;
 using Sudoku.Core.Difficulty;
 using Sudoku.Core.Persistence;
 using Sudoku.Game.Bootstrap;
+using Sudoku.Game.Theme;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -18,11 +19,6 @@ namespace Sudoku.Game.Screens
     /// </summary>
     public sealed class DifficultySelectView : MonoBehaviour, IScreen
     {
-        static readonly Color TitleColor = new Color(0.16f, 0.17f, 0.20f);
-        static readonly Color LabelColor = new Color(0.16f, 0.17f, 0.20f);
-        static readonly Color ButtonColor = new Color(0.93f, 0.94f, 0.96f);
-        static readonly Color DetailColor = new Color(0.45f, 0.47f, 0.52f);
-
         RectTransform _root;
         DifficultyTier[] _tiers;
         Text[] _waiting;
@@ -47,7 +43,7 @@ namespace Sudoku.Game.Screens
             view._root = rect;
             Ui.Stretch(rect);
 
-            var title = Ui.Label("Title", rect, 56, TitleColor);
+            var title = Ui.Label("Title", rect, 56, ThemeSlot.Title);
             Ui.Place(title.rectTransform, new Vector2(0, 620), new Vector2(800, 100));
             title.text = "New Game";
 
@@ -60,19 +56,19 @@ namespace Sudoku.Game.Screens
             for (var i = 0; i < tiers.Length; i++)
             {
                 var tier = tiers[i];
-                var button = Ui.Button($"Tier{tier}", rect, tier.ToString(), 34, ButtonColor, LabelColor);
+                var button = Ui.Button($"Tier{tier}", rect, tier.ToString(), 34, ThemeSlot.ButtonFill, ThemeSlot.ButtonText);
                 Ui.Place((RectTransform)button.transform,
                     new Vector2(0, (top - i) * 150f), new Vector2(640, 110));
                 button.onClick.AddListener(() => view.TierChosen?.Invoke(tier));
 
                 // The marker rides inside the row rather than beside it, so a
                 // row's whole hit area still belongs to the tier it names.
-                var waiting = Ui.Label("Waiting", button.transform, 22, DetailColor);
+                var waiting = Ui.Label("Waiting", button.transform, 22, ThemeSlot.Muted);
                 Ui.Place(waiting.rectTransform, new Vector2(180, 0), new Vector2(260, 60));
                 view._waiting[i] = waiting;
             }
 
-            var back = Ui.Button("Back", rect, "Back", 28, ButtonColor, LabelColor);
+            var back = Ui.Button("Back", rect, "Back", 28, ThemeSlot.ButtonFill, ThemeSlot.ButtonText);
             Ui.Place((RectTransform)back.transform, new Vector2(0, -620), new Vector2(300, 88));
             back.onClick.AddListener(() => view.BackTapped?.Invoke());
 

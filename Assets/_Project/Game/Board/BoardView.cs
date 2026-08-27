@@ -2,6 +2,7 @@ using System;
 using Sudoku.Core.Model;
 using Sudoku.Core.Session;
 using Sudoku.Game.Bootstrap;
+using Sudoku.Game.Theme;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,9 +14,6 @@ namespace Sudoku.Game.Board
     /// </summary>
     public sealed class BoardView : MonoBehaviour
     {
-        static readonly Color GridLine = new Color(0.35f, 0.37f, 0.42f);
-        static readonly Color BoardBackground = new Color(0.35f, 0.37f, 0.42f);
-
         CellView[] _cells;
 
         /// <summary>Raised when the player taps a cell.</summary>
@@ -26,9 +24,12 @@ namespace Sudoku.Game.Board
             var rect = Ui.Rect("Board", parent);
             var view = rect.gameObject.AddComponent<BoardView>();
 
+            // The sheet behind the cells is also the grid: the separators are
+            // the gaps the cells are placed with, so there is one colour here
+            // rather than a backing plus nine drawn lines.
             var background = rect.gameObject.AddComponent<Image>();
-            background.color = BoardBackground;
             background.raycastTarget = false;
+            ThemedGraphic.Attach(background, ThemeSlot.BoardLine);
 
             const float thin = 1f;
             const float thick = 3f;

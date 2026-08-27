@@ -1,6 +1,7 @@
 using System;
 using Sudoku.Core.Persistence;
 using Sudoku.Game.Bootstrap;
+using Sudoku.Game.Theme;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -17,20 +18,13 @@ namespace Sudoku.Game.Screens
     /// </summary>
     public sealed class ResumePromptView : MonoBehaviour, IScreen
     {
-        static readonly Color TitleColor = new Color(0.16f, 0.17f, 0.20f);
-        static readonly Color LabelColor = new Color(0.16f, 0.17f, 0.20f);
-        static readonly Color MutedColor = new Color(0.45f, 0.47f, 0.52f);
-        static readonly Color ButtonColor = new Color(0.93f, 0.94f, 0.96f);
-        static readonly Color PrimaryColor = new Color(0.55f, 0.75f, 0.98f);
-        static readonly Color WarnColor = new Color(0.97f, 0.80f, 0.55f);
-
         const string FreshLabel = "Start Fresh";
         const string ConfirmLabel = "Lose this puzzle? Tap again";
 
         RectTransform _root;
         Text _title;
         Text _detail;
-        Image _freshFill;
+        ThemedGraphic _freshFill;
         Text _freshText;
         bool _freshArmed;
         SaveSlot _slot;
@@ -53,13 +47,13 @@ namespace Sudoku.Game.Screens
             view._root = rect;
             Ui.Stretch(rect);
 
-            view._title = Ui.Label("Title", rect, 56, TitleColor);
+            view._title = Ui.Label("Title", rect, 56, ThemeSlot.Title);
             Ui.Place(view._title.rectTransform, new Vector2(0, 520), new Vector2(800, 100));
 
-            view._detail = Ui.Label("Detail", rect, 26, MutedColor);
+            view._detail = Ui.Label("Detail", rect, 26, ThemeSlot.Muted);
             Ui.Place(view._detail.rectTransform, new Vector2(0, 420), new Vector2(800, 60));
 
-            var resume = AddButton(rect, "Resume", 140, PrimaryColor, LabelColor);
+            var resume = AddButton(rect, "Resume", 140, ThemeSlot.PrimaryFill, ThemeSlot.PrimaryText);
             resume.onClick.AddListener(() =>
             {
                 var slot = view._slot;
@@ -67,19 +61,19 @@ namespace Sudoku.Game.Screens
                 view.ResumeTapped?.Invoke(slot);
             });
 
-            var fresh = AddButton(rect, FreshLabel, 0, ButtonColor, LabelColor);
-            view._freshFill = fresh.targetGraphic as Image;
+            var fresh = AddButton(rect, FreshLabel, 0, ThemeSlot.ButtonFill, ThemeSlot.ButtonText);
+            view._freshFill = fresh.targetGraphic.GetComponent<ThemedGraphic>();
             view._freshText = fresh.GetComponentInChildren<Text>();
             fresh.onClick.AddListener(view.OnStartFreshTapped);
 
-            var back = AddButton(rect, "Back", -140, ButtonColor, LabelColor);
+            var back = AddButton(rect, "Back", -140, ThemeSlot.ButtonFill, ThemeSlot.ButtonText);
             back.onClick.AddListener(() =>
             {
                 view.Disarm();
                 view.BackTapped?.Invoke();
             });
 
-            var note = Ui.Label("Note", rect, 24, MutedColor);
+            var note = Ui.Label("Note", rect, 24, ThemeSlot.Muted);
             Ui.Place(note.rectTransform, new Vector2(0, -280), new Vector2(800, 40));
             note.text = "Starting fresh throws this puzzle away for good.";
 
@@ -110,7 +104,7 @@ namespace Sudoku.Game.Screens
             {
                 _freshArmed = true;
                 _freshText.text = ConfirmLabel;
-                _freshFill.color = WarnColor;
+                _freshFill.Use(ThemeSlot.WarnFill);
                 return;
             }
 
@@ -123,12 +117,12 @@ namespace Sudoku.Game.Screens
         {
             _freshArmed = false;
             _freshText.text = FreshLabel;
-            _freshFill.color = ButtonColor;
+            _freshFill.Use(ThemeSlot.ButtonFill);
         }
 
-        static Button AddButton(Transform parent, string text, float y, Color fill, Color textColor)
+        static Button AddButton(Transform parent, string text, float y, ThemeSlot fill, ThemeSlot textSlot)
         {
-            var button = Ui.Button(text, parent, text, 34, fill, textColor);
+            var button = Ui.Button(text, parent, text, 34, fill, textSlot);
             Ui.Place((RectTransform)button.transform, new Vector2(0, y), new Vector2(640, 110));
             return button;
         }

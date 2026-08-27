@@ -25,7 +25,7 @@ of that spec's build order. Steps 1-4 landed on `main` before this branch.
 | 5 | Pause screen | #1 | Done — `ticket/05-pause` |
 | 6 | Continue, and knowing where you left off | #1, #2 | Done — `ticket/06-continue` |
 | 7 | Results card, game over, and the consumable seam | #1, #2 | Done — `ticket/07-results` |
-| 8 | Typography and theming | #4 | |
+| 8 | Typography and theming | #4 | Done — `ticket/08-theming` (theme system complete; TMP migration and font atlases outstanding, see addendum 26) |
 | 9 | Chunky-playful skin pass | #8 | |
 | 10 | Motion and juice | #9 | |
 | 11 | Audio and haptics | #4 | Done — `ticket/11-audio` (clips are placeholders; CC0 sourcing outstanding) |

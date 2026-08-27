@@ -3,7 +3,8 @@
     "rootNamespace": "Sudoku.Editor",
     "references": [
         "Sudoku.Core",
-        "Sudoku.Game"
+        "Sudoku.Game",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [
         "Editor"

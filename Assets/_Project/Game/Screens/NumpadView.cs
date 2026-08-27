@@ -1,6 +1,7 @@
 using System;
 using Sudoku.Core.Session;
 using Sudoku.Game.Bootstrap;
+using Sudoku.Game.Theme;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -22,20 +23,13 @@ namespace Sudoku.Game.Screens
     /// </summary>
     public sealed class NumpadView : MonoBehaviour
     {
-        static readonly Color ButtonColor = new Color(0.93f, 0.94f, 0.96f);
-        static readonly Color ButtonDisabled = new Color(0.86f, 0.87f, 0.89f);
-        static readonly Color ButtonActive = new Color(0.55f, 0.75f, 0.98f);
-        static readonly Color LabelColor = new Color(0.16f, 0.17f, 0.20f);
-        static readonly Color BadgeColor = new Color(0.50f, 0.52f, 0.57f);
-        static readonly Color HintPending = new Color(0.99f, 0.76f, 0.32f);
-
         readonly Button[] _digits = new Button[10];
-        readonly Image[] _digitBacks = new Image[10];
-        readonly Text[] _digitLabels = new Text[10];
+        readonly ThemedGraphic[] _digitBacks = new ThemedGraphic[10];
+        readonly ThemedGraphic[] _digitLabels = new ThemedGraphic[10];
         readonly Text[] _digitBadges = new Text[10];
 
-        Image _notesBack;
-        Image _hintBack;
+        ThemedGraphic _notesBack;
+        ThemedGraphic _hintBack;
         Text _hintLabel;
 
         public Action<int> DigitTapped;
@@ -63,11 +57,11 @@ namespace Sudoku.Game.Screens
                 var action = actions[i];
                 var x = -width / 2f + width / actions.Length * (i + 0.5f);
 
-                var image = Ui.Panel($"Action{action}", parent, ButtonColor);
+                var image = Ui.Panel($"Action{action}", parent, ThemeSlot.NumpadFill);
                 image.raycastTarget = true;
                 Ui.Place(image.rectTransform, new Vector2(x, 58), new Vector2(buttonWidth, 56));
 
-                var label = Ui.Label("Label", image.rectTransform, 20, LabelColor);
+                var label = Ui.Label("Label", image.rectTransform, 20, ThemeSlot.NumpadLabel);
                 Ui.Stretch(label.rectTransform);
                 label.text = action.ToString();
 
@@ -75,10 +69,10 @@ namespace Sudoku.Game.Screens
                 button.targetGraphic = image;
                 button.onClick.AddListener(() => ActionTapped?.Invoke(action));
 
-                if (action == PadAction.Notes) _notesBack = image;
+                if (action == PadAction.Notes) _notesBack = image.GetComponent<ThemedGraphic>();
                 if (action == PadAction.Hint)
                 {
-                    _hintBack = image;
+                    _hintBack = image.GetComponent<ThemedGraphic>();
                     _hintLabel = label;
                 }
             }
@@ -93,15 +87,15 @@ namespace Sudoku.Game.Screens
                 var value = digit;
                 var x = -width / 2f + slot * (digit - 0.5f);
 
-                var image = Ui.Panel($"Digit{digit}", parent, ButtonColor);
+                var image = Ui.Panel($"Digit{digit}", parent, ThemeSlot.NumpadFill);
                 image.raycastTarget = true;
                 Ui.Place(image.rectTransform, new Vector2(x, -32), new Vector2(slot - 6, 84));
 
-                var label = Ui.Label("Label", image.rectTransform, 32, LabelColor);
+                var label = Ui.Label("Label", image.rectTransform, 32, ThemeSlot.NumpadLabel);
                 Ui.Stretch(label.rectTransform, 0, 16, 0, 0);
                 label.text = digit.ToString();
 
-                var badge = Ui.Label("Badge", image.rectTransform, 14, BadgeColor);
+                var badge = Ui.Label("Badge", image.rectTransform, 14, ThemeSlot.NumpadBadge);
                 Ui.Stretch(badge.rectTransform, 0, 4, 0, 62);
 
                 var hold = image.gameObject.AddComponent<HoldDetector>();
@@ -117,8 +111,8 @@ namespace Sudoku.Game.Screens
                 });
 
                 _digits[digit] = button;
-                _digitBacks[digit] = image;
-                _digitLabels[digit] = label;
+                _digitBacks[digit] = image.GetComponent<ThemedGraphic>();
+                _digitLabels[digit] = label.GetComponent<ThemedGraphic>();
                 _digitBadges[digit] = badge;
             }
         }
@@ -143,20 +137,20 @@ namespace Sudoku.Game.Screens
                 var exhausted = remaining <= 0;
 
                 _digits[digit].interactable = !exhausted;
-                _digitBacks[digit].color = exhausted ? ButtonDisabled : ButtonColor;
-                _digitLabels[digit].color = exhausted
-                    ? new Color(LabelColor.r, LabelColor.g, LabelColor.b, 0.35f)
-                    : LabelColor;
+                _digitBacks[digit].Use(exhausted ? ThemeSlot.NumpadDisabled : ThemeSlot.NumpadFill);
+                _digitLabels[digit].Use(exhausted
+                    ? ThemeSlot.NumpadLabelExhausted
+                    : ThemeSlot.NumpadLabel);
                 _digitBadges[digit].text = exhausted ? "" : remaining.ToString();
             }
 
-            _notesBack.color = notesMode ? ButtonActive : ButtonColor;
+            _notesBack.Use(notesMode ? ThemeSlot.NumpadActive : ThemeSlot.NumpadFill);
 
             // While a hint is revealed the button is the second half of the
             // gesture, so it says what the next tap will do rather than how
             // many hints are left.
             var pending = session.PendingHint != null;
-            _hintBack.color = pending ? HintPending : ButtonColor;
+            _hintBack.Use(pending ? ThemeSlot.NumpadHintPending : ThemeSlot.NumpadFill);
             _hintLabel.text = pending ? "Fill it" : $"Hint {session.HintsRemaining}";
         }
     }

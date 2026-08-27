@@ -2,6 +2,7 @@ using System;
 using Sudoku.Core.Difficulty;
 using Sudoku.Core.Session;
 using Sudoku.Game.Bootstrap;
+using Sudoku.Game.Theme;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -18,18 +19,12 @@ namespace Sudoku.Game.Screens
     /// </summary>
     public sealed class ResultsView : MonoBehaviour, IScreen
     {
-        static readonly Color TitleColor = new Color(0.16f, 0.17f, 0.20f);
-        static readonly Color LabelColor = new Color(0.16f, 0.17f, 0.20f);
-        static readonly Color MutedColor = new Color(0.45f, 0.47f, 0.52f);
-        static readonly Color ButtonColor = new Color(0.93f, 0.94f, 0.96f);
-        static readonly Color PrimaryColor = new Color(0.55f, 0.75f, 0.98f);
-        static readonly Color CelebrateColor = new Color(0.15f, 0.55f, 0.30f);
-
         RectTransform _root;
         Text _tier;
         Text _time;
         Text _counters;
         Text _best;
+        ThemedGraphic _bestTheme;
         Text _reaction;
 
         PuzzleResult _result;
@@ -57,32 +52,33 @@ namespace Sudoku.Game.Screens
             view._root = rect;
             Ui.Stretch(rect);
 
-            var title = Ui.Label("Title", rect, 96, TitleColor);
+            var title = Ui.Label("Title", rect, 96, ThemeSlot.Title);
             Ui.Place(title.rectTransform, new Vector2(0, 560), new Vector2(800, 140));
             title.text = "Solved";
 
-            view._tier = Ui.Label("Tier", rect, 34, MutedColor);
+            view._tier = Ui.Label("Tier", rect, 34, ThemeSlot.Muted);
             Ui.Place(view._tier.rectTransform, new Vector2(0, 460), new Vector2(800, 60));
 
             // The time is the headline number: it is the one a player compares
             // against themselves, and the only one a record can be set on.
-            view._time = Ui.Label("Time", rect, 120, TitleColor);
+            view._time = Ui.Label("Time", rect, 120, ThemeSlot.Title);
             Ui.Place(view._time.rectTransform, new Vector2(0, 340), new Vector2(800, 160));
 
-            view._counters = Ui.Label("Counters", rect, 30, MutedColor);
+            view._counters = Ui.Label("Counters", rect, 30, ThemeSlot.Muted);
             Ui.Place(view._counters.rectTransform, new Vector2(0, 240), new Vector2(800, 50));
 
-            view._best = Ui.Label("Best", rect, 32, MutedColor);
+            view._best = Ui.Label("Best", rect, 32, ThemeSlot.Muted);
+            view._bestTheme = view._best.GetComponent<ThemedGraphic>();
             Ui.Place(view._best.rectTransform, new Vector2(0, 170), new Vector2(800, 50));
 
-            view._reaction = Ui.Label("Reaction", rect, 28, MutedColor);
+            view._reaction = Ui.Label("Reaction", rect, 28, ThemeSlot.Muted);
             Ui.Place(view._reaction.rectTransform, new Vector2(0, 80), new Vector2(880, 60));
             view._reaction.text = string.Empty;
 
-            var next = AddButton(rect, "Next Puzzle", -80, PrimaryColor, LabelColor);
+            var next = AddButton(rect, "Next Puzzle", -80, ThemeSlot.PrimaryFill, ThemeSlot.PrimaryText);
             next.onClick.AddListener(() => view.NextTapped?.Invoke());
 
-            var home = AddButton(rect, "Home", -220, ButtonColor, LabelColor);
+            var home = AddButton(rect, "Home", -220, ThemeSlot.ButtonFill, ThemeSlot.ButtonText);
             home.onClick.AddListener(() => view.HomeTapped?.Invoke());
 
             return view;
@@ -116,12 +112,12 @@ namespace Sudoku.Game.Screens
             if (_result.IsNewBest)
             {
                 _best.text = "New best time";
-                _best.color = CelebrateColor;
+                _bestTheme.Use(ThemeSlot.Celebrate);
             }
             else
             {
                 _best.text = $"Best {Clock(_result.BestSeconds)}";
-                _best.color = MutedColor;
+                _bestTheme.Use(ThemeSlot.Muted);
             }
 
             _reaction.text = Reaction != null ? Reaction(_result) ?? string.Empty : string.Empty;
@@ -137,9 +133,9 @@ namespace Sudoku.Game.Screens
         static string Plural(int count, string noun) =>
             count == 1 ? $"1 {noun}" : $"{count} {noun}s";
 
-        static Button AddButton(Transform parent, string text, float y, Color fill, Color textColor)
+        static Button AddButton(Transform parent, string text, float y, ThemeSlot fill, ThemeSlot textSlot)
         {
-            var button = Ui.Button(text, parent, text, 34, fill, textColor);
+            var button = Ui.Button(text, parent, text, 34, fill, textSlot);
             Ui.Place((RectTransform)button.transform, new Vector2(0, y), new Vector2(640, 110));
             return button;
         }
