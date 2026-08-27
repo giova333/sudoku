@@ -693,3 +693,38 @@ stays the authoritative description of what exists.
     blocks Play mode for the whole project just as surely as one in the game
     layer. It builds against Unity's own `UnityEditor.*Module` assemblies, which
     live in the same `Managed/UnityEngine` folder as the runtime ones.
+
+29. **The rounded rectangles are drawn, not imported.** The spec promised a look
+    that needs no illustration assets; `Game/Bootstrap/Shapes.cs` is what makes
+    that literally true. It rasterises a rounded-box signed distance field into
+    a small white texture - the shape lives in the alpha channel and the sprite
+    carries no colour of its own - and nine-slices it, so one 52x52 texture
+    dresses a button, a card and the board at any size. Nothing is committed,
+    nothing is imported, and nothing needs a licence. `Game/Bootstrap/Skin.cs`
+    holds the five measurements the language is made of, because a skin someone
+    buys changes the palette and not what a button is shaped like.
+
+    `ChunkyBox` assembles the three graphics - hard shadow, filled face, thick
+    stroke - and `ChunkyButton` is a `Button` subclass that forwards Unity's own
+    selection state to it, rather than a second set of pointer handlers trying
+    to stay in step with the first. Its transition is `None` on purpose: the
+    stock colour tint reaches one graphic and would leave a live stroke and
+    shadow round a dimmed face.
+
+30. **The press-depress is a state change, and the shadow collapse is a float.**
+    `ChunkyBox.ShadowDepth` is the gap between the face and the shadow that
+    never moves - `Skin.RestingShadow` at rest, `Skin.PressedShadow` while held
+    - and `SetPressed` snaps it. That is complete on its own: the interface
+    feels physical with no tweening in the project at all. Step 10 assigns the
+    static `ChunkyBox.PressAnimator` from the composition root and drives
+    `ShadowDepth` with overshoot easing instead of the snap, which is the whole
+    hand-off; no view and no screen has to be touched to add motion.
+
+31. **Safe area is one rect, and the ground is deliberately outside it.**
+    `SafeAreaFitter` sits between the canvas and every screen and is driven from
+    `Screen.safeArea` in normalised terms, polled rather than pushed because
+    Unity raises no event for it. The screen background stays parented to the
+    canvas and runs edge to edge - Android renders into the cutout and iOS shows
+    the home indicator, and a letterboxed background reads as a bug - while
+    every control hangs off the safe rect. No `ProjectSettings` change was
+    needed; `androidRenderOutsideSafeArea: 1` is the setting this design wants.

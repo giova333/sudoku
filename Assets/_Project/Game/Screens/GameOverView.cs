@@ -54,6 +54,13 @@ namespace Sudoku.Game.Screens
             Ui.Place(blurb.rectTransform, new Vector2(0, 420), new Vector2(880, 60));
             blurb.text = CopyTable.GameOverBlurb;
 
+            // The same card the results screen hands out, holding the same two
+            // facts: losing is an outcome, and it is reported the way winning
+            // is rather than as an apology.
+            var card = Ui.Box("Card", rect, ThemeSlot.CardSurface);
+            Ui.Place(card.Rect, new Vector2(0, 300), new Vector2(760, 170));
+            card.Fill.raycastTarget = false;
+
             view._tier = Ui.Label("Tier", rect, 32, ThemeSlot.Muted);
             Ui.Place(view._tier.rectTransform, new Vector2(0, 330), new Vector2(800, 50));
 

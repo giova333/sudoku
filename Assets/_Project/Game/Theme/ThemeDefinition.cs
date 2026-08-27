@@ -29,48 +29,51 @@ namespace Sudoku.Game.Theme
         [SerializeField] TMP_FontAsset _numeralFont;
 
         [Header("Surfaces")]
-        [SerializeField] Color _screenBackground = new Color(0.96f, 0.96f, 0.94f);
-        [SerializeField] Color _boardLine = new Color(0.35f, 0.37f, 0.42f);
+        [SerializeField] Color _screenBackground = new Color(0.980f, 0.953f, 0.894f);
+        [SerializeField] Color _boardLine = new Color(0.169f, 0.165f, 0.200f);
+        [SerializeField] Color _cardSurface = new Color(1.000f, 0.992f, 0.969f);
+        [SerializeField] Color _shadow = new Color(0.169f, 0.165f, 0.200f);
+        [SerializeField] Color _outline = new Color(0.169f, 0.165f, 0.200f);
 
         [Header("Cells")]
-        [SerializeField] Color _cellBackground = new Color(0.98f, 0.98f, 0.96f);
-        [SerializeField] Color _cellPeer = new Color(0.90f, 0.93f, 0.97f);
-        [SerializeField] Color _cellSameDigit = new Color(0.80f, 0.87f, 0.96f);
-        [SerializeField] Color _cellSelected = new Color(0.65f, 0.80f, 0.98f);
-        [SerializeField] Color _cellHintReason = new Color(0.99f, 0.92f, 0.72f);
-        [SerializeField] Color _cellHintTarget = new Color(0.99f, 0.76f, 0.32f);
+        [SerializeField] Color _cellBackground = new Color(1.000f, 0.992f, 0.969f);
+        [SerializeField] Color _cellPeer = new Color(0.863f, 0.933f, 1.000f);
+        [SerializeField] Color _cellSameDigit = new Color(0.659f, 0.847f, 1.000f);
+        [SerializeField] Color _cellSelected = new Color(0.302f, 0.651f, 1.000f);
+        [SerializeField] Color _cellHintReason = new Color(1.000f, 0.910f, 0.639f);
+        [SerializeField] Color _cellHintTarget = new Color(1.000f, 0.714f, 0.153f);
 
         [Header("Digits")]
-        [SerializeField] Color _givenDigit = new Color(0.13f, 0.14f, 0.16f);
-        [SerializeField] Color _enteredDigit = new Color(0.16f, 0.38f, 0.72f);
-        [SerializeField] Color _errorDigit = new Color(0.83f, 0.21f, 0.24f);
-        [SerializeField] Color _noteDigit = new Color(0.45f, 0.47f, 0.52f);
+        [SerializeField] Color _givenDigit = new Color(0.169f, 0.165f, 0.200f);
+        [SerializeField] Color _enteredDigit = new Color(0.122f, 0.373f, 0.749f);
+        [SerializeField] Color _errorDigit = new Color(0.878f, 0.192f, 0.192f);
+        [SerializeField] Color _noteDigit = new Color(0.478f, 0.463f, 0.569f);
 
         [Header("Text")]
-        [SerializeField] Color _title = new Color(0.16f, 0.17f, 0.20f);
-        [SerializeField] Color _body = new Color(0.16f, 0.17f, 0.20f);
-        [SerializeField] Color _muted = new Color(0.45f, 0.47f, 0.52f);
-        [SerializeField] Color _disabled = new Color(0.62f, 0.64f, 0.68f);
-        [SerializeField] Color _danger = new Color(0.83f, 0.21f, 0.24f);
-        [SerializeField] Color _celebrate = new Color(0.15f, 0.55f, 0.30f);
+        [SerializeField] Color _title = new Color(0.169f, 0.165f, 0.200f);
+        [SerializeField] Color _body = new Color(0.169f, 0.165f, 0.200f);
+        [SerializeField] Color _muted = new Color(0.431f, 0.416f, 0.502f);
+        [SerializeField] Color _disabled = new Color(0.663f, 0.647f, 0.722f);
+        [SerializeField] Color _danger = new Color(0.878f, 0.192f, 0.192f);
+        [SerializeField] Color _celebrate = new Color(0.071f, 0.718f, 0.416f);
 
         [Header("Controls")]
-        [SerializeField] Color _buttonFill = new Color(0.93f, 0.94f, 0.96f);
-        [SerializeField] Color _buttonText = new Color(0.16f, 0.17f, 0.20f);
-        [SerializeField] Color _primaryFill = new Color(0.55f, 0.75f, 0.98f);
-        [SerializeField] Color _primaryText = new Color(0.16f, 0.17f, 0.20f);
-        [SerializeField] Color _warnFill = new Color(0.97f, 0.80f, 0.55f);
-        [SerializeField] Color _toggleOn = new Color(0.55f, 0.75f, 0.98f);
-        [SerializeField] Color _toggleOff = new Color(0.87f, 0.88f, 0.90f);
+        [SerializeField] Color _buttonFill = new Color(1.000f, 0.992f, 0.969f);
+        [SerializeField] Color _buttonText = new Color(0.169f, 0.165f, 0.200f);
+        [SerializeField] Color _primaryFill = new Color(0.239f, 0.863f, 0.592f);
+        [SerializeField] Color _primaryText = new Color(0.169f, 0.165f, 0.200f);
+        [SerializeField] Color _warnFill = new Color(1.000f, 0.365f, 0.451f);
+        [SerializeField] Color _toggleOn = new Color(0.239f, 0.863f, 0.592f);
+        [SerializeField] Color _toggleOff = new Color(0.902f, 0.882f, 0.827f);
 
         [Header("Numpad")]
-        [SerializeField] Color _numpadFill = new Color(0.93f, 0.94f, 0.96f);
-        [SerializeField] Color _numpadDisabled = new Color(0.86f, 0.87f, 0.89f);
-        [SerializeField] Color _numpadActive = new Color(0.55f, 0.75f, 0.98f);
-        [SerializeField] Color _numpadLabel = new Color(0.16f, 0.17f, 0.20f);
-        [SerializeField] Color _numpadLabelExhausted = new Color(0.16f, 0.17f, 0.20f, 0.35f);
-        [SerializeField] Color _numpadBadge = new Color(0.50f, 0.52f, 0.57f);
-        [SerializeField] Color _numpadHintPending = new Color(0.99f, 0.76f, 0.32f);
+        [SerializeField] Color _numpadFill = new Color(1.000f, 0.992f, 0.969f);
+        [SerializeField] Color _numpadDisabled = new Color(0.902f, 0.882f, 0.827f);
+        [SerializeField] Color _numpadActive = new Color(0.690f, 0.518f, 0.961f);
+        [SerializeField] Color _numpadLabel = new Color(0.169f, 0.165f, 0.200f);
+        [SerializeField] Color _numpadLabelExhausted = new Color(0.169f, 0.165f, 0.200f, 0.30f);
+        [SerializeField] Color _numpadBadge = new Color(0.431f, 0.416f, 0.502f);
+        [SerializeField] Color _numpadHintPending = new Color(1.000f, 0.714f, 0.153f);
 
         /// <summary>Which shipped look this asset is, so the theme service can find it
         /// by the value the preference persists rather than by file name.</summary>
@@ -95,6 +98,9 @@ namespace Sudoku.Game.Theme
             {
                 case ThemeSlot.ScreenBackground: return _screenBackground;
                 case ThemeSlot.BoardLine: return _boardLine;
+                case ThemeSlot.CardSurface: return _cardSurface;
+                case ThemeSlot.Shadow: return _shadow;
+                case ThemeSlot.Outline: return _outline;
 
                 case ThemeSlot.CellBackground: return _cellBackground;
                 case ThemeSlot.CellPeer: return _cellPeer;

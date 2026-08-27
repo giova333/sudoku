@@ -6,12 +6,12 @@ using UnityEngine.UI;
 namespace Sudoku.Game.Bootstrap
 {
     /// <summary>
-    /// Small helpers for building the greybox interface in code.
+    /// Small helpers for building the interface in code.
     ///
     /// The whole UI is constructed at runtime rather than authored as prefabs.
-    /// For the greybox that is a feature: the layout is diffable, reviewable and
-    /// reproducible, with no binary scene merges. The skin pass revisits this
-    /// once the visual language is settled.
+    /// The layout is diffable, reviewable and reproducible, with no binary
+    /// scene merges - and now that the skin is a shape rather than a picture,
+    /// there is nothing an authored prefab would have held that this does not.
     /// </summary>
     public static class Ui
     {
@@ -65,6 +65,46 @@ namespace Sudoku.Game.Bootstrap
             return image;
         }
 
+        /// <summary>
+        /// A panel cut with the skin's corner. Flat - no stroke and no shadow -
+        /// for the things that are a surface rather than an object: a board
+        /// cell, the ground behind a screen.
+        /// </summary>
+        public static Image Rounded(string name, Transform parent, ThemeSlot slot, float radius) =>
+            Round(Panel(name, parent, slot), radius);
+
+        /// <summary>Cuts an image that already exists to the skin's corner, for
+        /// the few graphics a view builds itself.</summary>
+        public static Image Round(Image image, float radius)
+        {
+            image.sprite = Shapes.Rounded(radius);
+            image.type = Image.Type.Sliced;
+            return image;
+        }
+
+        /// <summary>
+        /// The whole skin in one object: a hard shadow, a filled face above it
+        /// and a thick stroke round the face. Everything that reads as a
+        /// physical thing - a button, a numpad key, a card, the board - is one
+        /// of these, and content goes on <see cref="ChunkyBox.Face"/>.
+        /// </summary>
+        public static ChunkyBox Box(string name, Transform parent, ThemeSlot fill) =>
+            ChunkyBox.Create(name, parent, fill);
+
+        /// <summary>
+        /// Makes a box tappable, and makes the tap show. Separate from
+        /// <see cref="Button"/> because the numpad builds its own keys - it
+        /// wants the press and not <see cref="ButtonTapped"/>'s click.
+        /// </summary>
+        public static ChunkyButton Pressable(ChunkyBox box)
+        {
+            var button = box.gameObject.AddComponent<ChunkyButton>();
+            button.transition = Selectable.Transition.None;
+            button.targetGraphic = box.Fill;
+            button.Box = box;
+            return button;
+        }
+
         public static Text Label(string name, Transform parent, int size, ThemeSlot slot,
             TextAnchor anchor = TextAnchor.MiddleCenter)
         {
@@ -81,25 +121,39 @@ namespace Sudoku.Game.Bootstrap
         }
 
         /// <summary>
-        /// A filled panel carrying a centred label and a <see cref="UnityEngine.UI.Button"/>.
-        /// Every greybox screen builds the same three objects, so the recipe
-        /// lives here rather than once per screen. Callers position the result
-        /// with <see cref="Place"/>.
+        /// A chunky box carrying a centred label, wired to depress when it is
+        /// held. Every screen builds the same button, so the recipe lives here
+        /// rather than once per screen. Callers position the result with
+        /// <see cref="Place"/>.
+        ///
+        /// It still answers as a plain <see cref="UnityEngine.UI.Button"/>: a
+        /// caller that wants the fill's role reaches through
+        /// <see cref="Selectable.targetGraphic"/> and one that wants the label
+        /// reaches through the children, exactly as before.
         /// </summary>
         public static Button Button(string name, Transform parent, string text, int size,
             ThemeSlot fill, ThemeSlot textSlot)
         {
-            var image = Panel(name, parent, fill);
-            image.raycastTarget = true;
+            var box = Box(name, parent, fill);
 
-            var label = Label("Label", image.rectTransform, size, textSlot);
+            var label = Label("Label", box.Face, size, textSlot);
             Stretch(label.rectTransform);
             label.text = text;
 
-            var button = image.gameObject.AddComponent<Button>();
-            button.targetGraphic = image;
+            var button = Pressable(box);
             button.onClick.AddListener(() => ButtonTapped?.Invoke());
             return button;
+        }
+
+        /// <summary>
+        /// Where anything extra printed on a button belongs: the face, so it
+        /// rides down with the press instead of hovering over a button that has
+        /// moved out from under it.
+        /// </summary>
+        public static Transform Face(Button button)
+        {
+            var chunky = button as ChunkyButton;
+            return chunky != null && chunky.Box != null ? chunky.Box.Face : button.transform;
         }
 
         /// <summary>
