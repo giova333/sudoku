@@ -85,6 +85,22 @@ namespace Sudoku.Game.Screens
             Render();
         }
 
+        /// <summary>
+        /// Plays the same puzzle again from its clues. What "from the
+        /// beginning" means to the board, the clock and every counter is the
+        /// session's business, so this only forgets what the player was
+        /// pointing at and redraws.
+        /// </summary>
+        public void Restart()
+        {
+            if (_session == null) return;
+
+            _session.Restart();
+            _selected = -1;
+            _notesMode = false;
+            Render();
+        }
+
         /// <summary>Leaving for another screen suspends the clock; coming back
         /// restarts it on the same session.</summary>
         public void OnShow()

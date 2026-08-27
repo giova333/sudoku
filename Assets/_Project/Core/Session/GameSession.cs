@@ -80,6 +80,45 @@ namespace Sudoku.Core.Session
             Emit(GameEventKind.PuzzleAbandoned);
         }
 
+        /// <summary>
+        /// Puts the same puzzle back to its clue state: the player's entries,
+        /// their notes, the undo history, the timer, hearts, mistakes and hints
+        /// all return to where they stood at the first tap.
+        ///
+        /// Starting over is a rule, not a screen. A caller could deal itself a
+        /// fresh session over the same puzzle instead, but only the session
+        /// knows what "back to the beginning" means for every counter it owns,
+        /// and a run that ended out of hearts has to become playable again -
+        /// which is why this resets <see cref="Status"/> too.
+        ///
+        /// Pause is left exactly as it was: whoever paused the session is the
+        /// one who decides when it resumes.
+        /// </summary>
+        public void Restart()
+        {
+            for (var i = 0; i < Board.CellCount; i++)
+            {
+                _values[i] = _puzzle.ClueAt(i);
+                _notes[i] = 0;
+            }
+
+            _history.Clear();
+            PendingHint = null;
+
+            Status = SessionStatus.InProgress;
+            ElapsedSeconds = 0f;
+            HeartsRemaining = _rules.Hearts;
+            MistakeCount = 0;
+            HintsRemaining = _rules.Hints;
+            HintsUsed = 0;
+            _emptyCells = CountEmpty();
+
+            // The puzzle is being played from the beginning again, so anyone who
+            // counted the first run is told a run is starting - but only once
+            // play has actually begun, so this can never precede Start.
+            if (_started) Emit(GameEventKind.PuzzleStarted);
+        }
+
         void Emit(GameEventKind kind, int cellIndex = -1, int digit = Board.Empty, bool wasCorrect = false)
         {
             var handler = Emitted;

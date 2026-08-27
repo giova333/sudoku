@@ -67,6 +67,23 @@ namespace Sudoku.Game.Screens
             Show(next);
         }
 
+        /// <summary>
+        /// Empties the back stack and makes the given screen the new root.
+        /// Leaving a puzzle from the pause screen is not two steps backwards:
+        /// the player asked for Home, and walking back into a pause screen over
+        /// a puzzle they have already left would be nonsense. Nothing is torn
+        /// down, so the screens left behind keep whatever they were holding.
+        /// </summary>
+        public void ResetTo<TScreen>() where TScreen : IScreen
+        {
+            var next = Lookup(typeof(TScreen));
+
+            Hide(Current);
+            _stack.Clear();
+            _stack.Add(next);
+            Show(next);
+        }
+
         /// <summary>Pops the back stack. A no-op at the root, so a back button
         /// can be wired unconditionally.</summary>
         public void Back()
