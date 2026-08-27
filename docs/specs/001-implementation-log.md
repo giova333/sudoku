@@ -31,4 +31,31 @@ of that spec's build order. Steps 1-4 landed on `main` before this branch.
 | 11 | Audio and haptics | #4 | Done — `ticket/11-audio` (clips are placeholders; CC0 sourcing outstanding) |
 | 12 | Copy voice table | #7 | Done — `ticket/12-copy` |
 | 13 | Analytics interface and event wiring | #1, #4 | Done — `ticket/13-analytics` |
-| 14 | Device build on iOS and Android | #9, #11 | |
+| 14 | Device build on iOS and Android | #9, #11 | **Not done — blocked on hardware.** See below. |
+
+## Ticket #14 — what is done and what is blocked
+
+The identity and orientation half of #14 is done; the build half cannot be done
+from this machine.
+
+| Acceptance criterion | Status |
+|---|---|
+| Bundle identifier is `com.hladunoleksandr.sudoku`, no placeholder identity | Done — Android and iPhone were already correct; `Standalone` still held the URP template's identifier and now matches |
+| Portrait builds | Config done — portrait on, upside-down and both landscape off |
+| Safe area correct on a notched device | Implemented (addendum 31), **never rendered** |
+| Builds run on physical iOS and Android hardware | **Blocked** |
+| Frame rate holds during interaction and the completion cascade | **Blocked** |
+| Touch targets comfortable at real thumb size | **Blocked** |
+
+The Unity install carries only `MacStandaloneSupport` and `WebGLSupport` in its
+`PlaybackEngines`, so there is no iOS or Android build target to build for -
+this is a Unity Hub install step, and iOS additionally needs Xcode and a signing
+identity. The three blocked criteria need a device in a hand.
+
+## What has never been rendered
+
+Worth stating plainly, because the green suite does not cover it. All 277 tests
+are `Sudoku.Core`; `Sudoku.Game` is compile-checked but never executed, and no
+part of this branch has been run in the editor. The skin, the motion, the safe
+area, and every screen layout were verified by compile-check and arithmetic
+only. The first Play-mode session should expect to find layout problems.
