@@ -11,7 +11,14 @@ IAP, and ads are planned but out of scope for the current milestone.
 - **[docs/specs/001-core-sudoku-gameplay.md](docs/specs/001-core-sudoku-gameplay.md)** —
   the authoritative spec for the core milestone: problem, solution, 89 user
   stories, implementation decisions, test seams, out-of-scope, build order,
-  glossary, and known risks. Read this before writing any code.
+  glossary, and known risks. Read this before writing any code. Its addendum
+  (items 1-38) records every deviation made while building it, so the spec
+  stays an accurate description of what exists.
+- **[docs/specs/001-implementation-log.md](docs/specs/001-implementation-log.md)** —
+  which tickets landed, and what ticket #14 still owes.
+- **[docs/specs/002-proving-it-on-a-device.md](docs/specs/002-proving-it-on-a-device.md)** —
+  draft follow-up: get it running on a phone, then give the Core-to-presentation
+  seam a way to fail.
 
 ## Layout
 
