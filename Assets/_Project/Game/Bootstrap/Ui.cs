@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -14,6 +15,17 @@ namespace Sudoku.Game.Bootstrap
     public static class Ui
     {
         static Font _font;
+
+        /// <summary>
+        /// Raised by every button this helper builds, so the interface chrome
+        /// can be given a voice in one place instead of a sound call being
+        /// remembered at each of the dozen screens that build buttons.
+        ///
+        /// It is deliberately not raised by the numpad, which builds its own
+        /// buttons: a digit already announces itself as a placement or a
+        /// mistake, and a click on top of that is one sound too many.
+        /// </summary>
+        public static Action ButtonTapped;
 
         /// <summary>
         /// The engine's built-in font. TextMeshPro needs its essential
@@ -73,6 +85,7 @@ namespace Sudoku.Game.Bootstrap
 
             var button = image.gameObject.AddComponent<Button>();
             button.targetGraphic = image;
+            button.onClick.AddListener(() => ButtonTapped?.Invoke());
             return button;
         }
 

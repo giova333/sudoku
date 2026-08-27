@@ -1,3 +1,4 @@
+using Sudoku.Game.Audio;
 using Sudoku.Game.Board;
 using Sudoku.Game.Content;
 using Sudoku.Game.Save;
@@ -59,9 +60,19 @@ namespace Sudoku.Game.Bootstrap
             // waiting before any screen is built.
             var saves = new SaveStore();
 
+            // Sound and haptics are two switches, not one, and both are already
+            // persisted preferences - so the service holds no preference of its
+            // own and is written to from the settings it must obey. Observe
+            // fires immediately, which is also what applies the saved mute
+            // before the first screen can make a noise.
+            var audio = AudioService.Create(transform);
+            settings.SoundEnabled.Observe(on => audio.SoundEnabled = on);
+            settings.HapticsEnabled.Observe(on => audio.HapticsEnabled = on);
+            Ui.ButtonTapped = () => audio.Play(Sfx.ButtonTap);
+
             var home = HomeView.Create(canvas.transform);
             var difficulty = DifficultySelectView.Create(canvas.transform);
-            var game = BuildGameScreen(canvas.transform, navigator, settings, saves);
+            var game = BuildGameScreen(canvas.transform, navigator, settings, saves, audio);
             var pause = PauseView.Create(canvas.transform);
             var settingsScreen = SettingsView.Create(canvas.transform, settings);
 
@@ -109,7 +120,7 @@ namespace Sudoku.Game.Bootstrap
         /// navigator can put the whole puzzle aside without tearing it down.
         /// </summary>
         GamePresenter BuildGameScreen(Transform parent, Navigator navigator, GameSettings settings,
-            SaveStore saves)
+            SaveStore saves, IAudioService audio)
         {
             var root = Ui.Rect("Game", parent);
             Ui.Stretch(root);
@@ -130,7 +141,8 @@ namespace Sudoku.Game.Bootstrap
             hud.SettingsTapped += navigator.Go<SettingsView>;
 
             var presenter = gameObject.AddComponent<GamePresenter>();
-            presenter.Initialise(new PuzzleLibrary(saves), saves, settings, root, board, numpad, hud);
+            presenter.Initialise(new PuzzleLibrary(saves), saves, settings, root, board, numpad, hud,
+                audio);
             return presenter;
         }
 
