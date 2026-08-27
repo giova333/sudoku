@@ -264,6 +264,8 @@ namespace Sudoku.Core.Session
             if (_history.Count == 0)
                 return false;
 
+            PendingHint = null;
+
             var last = _history[_history.Count - 1];
             _history.RemoveAt(_history.Count - 1);
             last.Revert(_values, _notes);
@@ -396,7 +398,66 @@ namespace Sudoku.Core.Session
         public bool UseHint(int preferredCell = -1)
         {
             var hint = PeekHint(preferredCell);
+            return hint != null && ApplyHint(hint);
+        }
+
+        /// <summary>
+        /// The deduction the player has been shown but has not taken yet, or
+        /// null when none is waiting. Holding the hint here rather than in the
+        /// view is what makes "the cell you were shown is the cell that gets
+        /// filled" a guarantee: a second <see cref="PeekHint"/> against a
+        /// changed board could otherwise pick a different cell.
+        /// </summary>
+        public Hint PendingHint { get; private set; }
+
+        /// <summary>
+        /// First tap of a hint: shows the deduction and the cells that force
+        /// it, filling nothing and spending nothing. Returns null - and leaves
+        /// nothing pending - when there is nothing useful to reveal.
+        ///
+        /// Asking again while a hint is already pending re-offers the same one,
+        /// so a repeated tap can never quietly swap the cell under the player.
+        /// </summary>
+        public Hint RevealHint(int preferredCell = -1)
+        {
+            if (PendingHint != null)
+                return PendingHint;
+
+            PendingHint = PeekHint(preferredCell);
+            return PendingHint;
+        }
+
+        /// <summary>
+        /// Second tap of a hint: fills the cell that was revealed and spends
+        /// exactly one. Returns false when no hint is pending, so a tap that
+        /// follows a cancelled or unavailable hint costs nothing.
+        /// </summary>
+        public bool TakeHint()
+        {
+            var hint = PendingHint;
             if (hint == null)
+                return false;
+
+            PendingHint = null;
+            return ApplyHint(hint);
+        }
+
+        /// <summary>
+        /// Drops a revealed-but-untaken hint. The player looked elsewhere, and
+        /// a hint they never took is a hint they never spent.
+        /// </summary>
+        public void CancelHint() => PendingHint = null;
+
+        /// <summary>
+        /// Writes a hint onto the board and charges for it. Shared by the
+        /// one-shot <see cref="UseHint"/> and the two-tap
+        /// <see cref="TakeHint"/> so both spend on exactly the same terms.
+        /// </summary>
+        bool ApplyHint(Hint hint)
+        {
+            if (!IsActive || HintsRemaining <= 0)
+                return false;
+            if (_values[hint.CellIndex] == hint.Digit)
                 return false;
 
             var edits = new List<BoardEdit>
@@ -459,6 +520,11 @@ namespace Sudoku.Core.Session
 
         void Commit(BoardCommand command)
         {
+            // A pending hint was deduced from the board as it stood; once the
+            // board moves it is stale, and taking it could waste a hint on a
+            // cell the player has since filled themselves.
+            PendingHint = null;
+
             command.Apply(_values, _notes);
             _history.Add(command);
             if (_history.Count > UndoHistoryLimit)

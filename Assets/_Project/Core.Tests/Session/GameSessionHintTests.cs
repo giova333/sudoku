@@ -149,5 +149,122 @@ namespace Sudoku.Core.Tests.Session
                 "peek and use must agree, or the UI highlights one cell and fills another");
         }
 
+        [Test]
+        public void Revealing_a_hint_fills_nothing_and_spends_nothing()
+        {
+            var session = NewSession();
+            var before = session.HintsRemaining;
+
+            var revealed = session.RevealHint();
+
+            Assert.That(revealed, Is.Not.Null);
+            Assert.That(session.ValueAt(revealed.CellIndex), Is.EqualTo(Board.Empty),
+                "the first tap teaches; it does not answer");
+            Assert.That(session.HintsRemaining, Is.EqualTo(before));
+            Assert.That(session.HintsUsed, Is.Zero);
+        }
+
+        [Test]
+        public void Taking_a_revealed_hint_spends_exactly_one()
+        {
+            var session = NewSession();
+            var before = session.HintsRemaining;
+            session.RevealHint();
+
+            var taken = session.TakeHint();
+
+            Assert.That(taken, Is.True);
+            Assert.That(session.HintsRemaining, Is.EqualTo(before - 1));
+            Assert.That(session.HintsUsed, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void The_cell_that_was_revealed_is_the_cell_that_gets_filled()
+        {
+            var session = NewSession();
+            var revealed = session.RevealHint(preferredCell: 2);
+
+            session.TakeHint();
+
+            Assert.That(session.ValueAt(revealed.CellIndex), Is.EqualTo(revealed.Digit));
+            Assert.That(session.PendingHint, Is.Null, "taking the offer withdraws it");
+        }
+
+        [Test]
+        public void Revealing_twice_re_offers_the_same_hint()
+        {
+            var session = NewSession();
+
+            var first = session.RevealHint();
+            var second = session.RevealHint(preferredCell: 2);
+
+            Assert.That(second, Is.SameAs(first),
+                "a repeated tap must not swap the cell out from under the player");
+        }
+
+        [Test]
+        public void Cancelling_a_revealed_hint_leaves_it_unspent()
+        {
+            var session = NewSession();
+            var before = session.HintsRemaining;
+            var revealed = session.RevealHint();
+
+            session.CancelHint();
+
+            Assert.That(session.PendingHint, Is.Null);
+            Assert.That(session.ValueAt(revealed.CellIndex), Is.EqualTo(Board.Empty));
+            Assert.That(session.HintsRemaining, Is.EqualTo(before),
+                "a hint the player walked away from was never taken");
+        }
+
+        [Test]
+        public void A_tap_after_a_cancelled_hint_takes_nothing()
+        {
+            var session = NewSession();
+            var before = session.HintsRemaining;
+            session.RevealHint();
+            session.CancelHint();
+
+            Assert.That(session.TakeHint(), Is.False, "there is no offer left to accept");
+            Assert.That(session.HintsRemaining, Is.EqualTo(before));
+        }
+
+        [Test]
+        public void Playing_a_move_drops_a_revealed_hint_rather_than_letting_it_go_stale()
+        {
+            var session = NewSession();
+            session.RevealHint();
+
+            // Cell 2 (row 0, col 2) is empty in the classic puzzle.
+            session.Place(2, KnownPuzzles.ClassicSolution[2] - '0');
+
+            Assert.That(session.PendingHint, Is.Null);
+        }
+
+        [Test]
+        public void Undoing_drops_a_revealed_hint_too()
+        {
+            var session = NewSession();
+            session.Place(2, KnownPuzzles.ClassicSolution[2] - '0');
+            session.RevealHint();
+
+            session.Undo();
+
+            Assert.That(session.PendingHint, Is.Null,
+                "the board the deduction was made against has moved");
+        }
+
+        [Test]
+        public void Nothing_is_spent_when_there_is_nothing_to_reveal()
+        {
+            var rules = RulesConfig.Default;
+            rules.Hints = 0;
+            var session = NewSession(rules);
+
+            Assert.That(session.RevealHint(), Is.Null);
+            Assert.That(session.PendingHint, Is.Null);
+            Assert.That(session.TakeHint(), Is.False, "a second tap on nothing must not conjure a hint");
+            Assert.That(session.HintsRemaining, Is.Zero);
+        }
     }
 }

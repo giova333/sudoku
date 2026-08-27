@@ -467,3 +467,14 @@ stays the authoritative description of what exists.
     `nunit.framework.dll` before running anything, so that class of divergence
     fails in the normal loop. `tools/check.sh` runs everything that can be
     verified without opening the editor.
+
+13. **The two-tap hint's pending state lives in `GameSession`, not the view.**
+    `PeekHint`/`UseHint` each re-derive the deduction, so two taps against a
+    board that moved in between could show one cell and fill another - and
+    could spend a hint on a cell the player had already filled. `GameSession`
+    now holds the revealed-but-untaken hint (`PendingHint`) and exposes
+    `RevealHint`, `TakeHint` and `CancelHint`; any board mutation drops it.
+    "The cell you were shown is the cell that gets filled" is therefore a rule,
+    tested at the `GameSession` seam with no engine, rather than a convention
+    the presenter has to keep. `PeekHint`/`UseHint` remain for callers that
+    want the one-shot form.

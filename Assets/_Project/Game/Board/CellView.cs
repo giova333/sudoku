@@ -12,7 +12,13 @@ namespace Sudoku.Game.Board
         Normal,
         Peer,
         SameDigit,
-        Selected
+        Selected,
+
+        /// <summary>A cell that helps force the hinted one - the "why".</summary>
+        HintReason,
+
+        /// <summary>The cell a revealed hint is offering to fill.</summary>
+        HintTarget
     }
 
     /// <summary>
@@ -25,6 +31,11 @@ namespace Sudoku.Game.Board
         static readonly Color PeerBackground = new Color(0.90f, 0.93f, 0.97f);
         static readonly Color SameDigitBackground = new Color(0.80f, 0.87f, 0.96f);
         static readonly Color SelectedBackground = new Color(0.65f, 0.80f, 0.98f);
+
+        // Amber rather than another blue, so the hint reads as a separate
+        // conversation from ordinary selection and peer scanning.
+        static readonly Color HintReasonBackground = new Color(0.99f, 0.92f, 0.72f);
+        static readonly Color HintTargetBackground = new Color(0.99f, 0.76f, 0.32f);
 
         static readonly Color GivenText = new Color(0.13f, 0.14f, 0.16f);
         static readonly Color EnteredText = new Color(0.16f, 0.38f, 0.72f);
@@ -89,6 +100,8 @@ namespace Sudoku.Game.Board
         {
             switch (highlight)
             {
+                case CellHighlight.HintTarget: _background.color = HintTargetBackground; break;
+                case CellHighlight.HintReason: _background.color = HintReasonBackground; break;
                 case CellHighlight.Selected: _background.color = SelectedBackground; break;
                 case CellHighlight.SameDigit: _background.color = SameDigitBackground; break;
                 case CellHighlight.Peer: _background.color = PeerBackground; break;
