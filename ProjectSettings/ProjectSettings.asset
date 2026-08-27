@@ -170,7 +170,7 @@ PlayerSettings:
   androidMinAspectRatio: 1
   applicationIdentifier:
     Android: com.hladunoleksandr.sudoku
-    Standalone: com.Unity-Technologies.com.unity.template.urp-blank
+    Standalone: com.hladunoleksandr.sudoku
     iPhone: com.hladunoleksandr.sudoku
   buildNumber:
     Standalone: 0

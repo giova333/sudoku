@@ -448,7 +448,9 @@ stays the authoritative description of what exists.
    previously described the identifier as the placeholder
    `com.changeme.sudoku`, which was resolved before this branch began. The
    Standalone identifier is still the URP template default, which is harmless
-   while desktop stays out of scope.)*
+   while desktop stays out of scope. Corrected again during step 14: Standalone
+   now carries the same identifier as the other two. Harmless is not the same as
+   gone, and ticket #14 asks that no placeholder identity remain.)*
 
 8. **The greybox UI is built in code, not authored as prefabs**, and installs
    itself via `RuntimeInitializeOnLoadMethod` so no scene has to be edited. For
@@ -535,7 +537,10 @@ stays the authoritative description of what exists.
     the engine: the persistent data path, the atomic write, the background
     thread, and the pause/focus flush.
 
-17. **The save schema ships at version 2, not 1.** Version 1 is the greybox
+17. **The save schema ships at version 2, not 1.** *(Superseded during step 7:
+    the schema is now at version 3 - see item 22. What follows describes how
+    version 2 came about and why version 1 is kept as a fixture; both still
+    hold, and version 3 adds a third step to the same chain.)* Version 1 is the greybox
     shape - one in-progress puzzle under `slot`, with played-puzzle counts left
     in `PlayerPrefs`. Version 2 gives every difficulty its own slot plus a daily
     one and absorbs that tracking. Keeping version 1 as a real, checked-in
@@ -805,3 +810,84 @@ stays the authoritative description of what exists.
     silently overruling it at the next launch would make the switch look
     broken. The day the iOS read becomes available, it changes one method
     (`ReduceMotion.ReadableFromOs` and its reader) and nothing else.
+
+34. **A run that ends out of hearts is restarted by choosing its difficulty
+    again.** Ticket #7 already kept the failed puzzle in its slot, but nothing
+    could reach it: `SaveSlot.CanResume` is false for a failed session, so Home
+    hid Continue, `SaveData.ResumableFor` answered null, and picking that tier
+    dealt a *new* puzzle straight over the top. Leaving the game-over screen
+    quietly destroyed the puzzle - which is the opposite of the non-punitive way
+    out the ticket asks for, and it also spent a puzzle from a bank that never
+    repeats.
+
+    The fix is a second question the slot can answer. `SaveSlot.CanRestart` is
+    true exactly when the stored session failed, and `GamePresenter.StartPuzzle`
+    asks it after `CanResume`: a lost puzzle is taken back on and started over
+    from its clues rather than replaced. Continue still does not offer it -
+    there is nothing to carry on with, and a Continue button that hands back a
+    dead board is worse than no button - and the difficulty picker does not stop
+    to ask, because starting a lost puzzle over destroys nothing.
+
+    The two are deliberately separate properties rather than one "the slot has
+    something in it". They are different offers made by different screens, and
+    collapsing them is how the bug got in.
+
+35. **Restart re-reads the mistake limit; everything else about a puzzle's rules
+    is still snapshotted at deal time.** Item on ticket #4 stands: a settings
+    change must not rewrite a game already being scored, so `BuildRules` takes a
+    snapshot and the settings screen says "applies from the next puzzle". A
+    restart is not that game carrying on, though - it is the same puzzle from
+    the first tap, with the clock, the hearts and every counter back at zero -
+    so it is far closer to a new deal than to a resume, and a player who turns
+    the limit off and immediately asks for the puzzle again should get the run
+    they just asked for.
+
+    `GamePresenter.RereadRules` writes the current settings *into* the rules
+    object rather than replacing it, because `GameSession` holds that instance
+    for its lifetime and the save slot holds the same one - replacing it would
+    leave the session playing to rules nothing else can see.
+
+36. **Turning off "Highlight mistakes" silences five channels, not one.** Story
+    21 asks for a stricter, self-checked game. The preference reached only the
+    cell underline, while the shake, the error sound and firm haptic, the
+    numpad's remaining-count badge and the HUD's live `Mistakes n` counter all
+    went on announcing every wrong digit the instant it landed - and the badge
+    was the loudest of them, because refusing to count a digit names it as wrong
+    as plainly as painting it red would.
+
+    All five now read the same preference. The shake goes with the underline
+    deliberately: spec line 253 treats it as *the* redundant non-colour error
+    signal, so the two are one signal in two channels and belong behind one
+    switch. Two things stay: hearts remaining is still on the strip, because it
+    is a resource the player is spending rather than a telling-off and hiding it
+    would leave a run ending with no warning; and nothing about the mistake
+    system itself changes - the heart is still spent, the count is still kept,
+    and the run still fails at zero. The preference hides immediate feedback; it
+    does not make mistakes free.
+
+    One consequence is intended rather than tolerated: with the preference off,
+    nine 5s on the board grey the 5 out even if one of them is wrong. That is
+    what a self-checked board looks like - the pad reports what has been placed,
+    not what is correct - and erase is always available.
+
+37. **After 2,000 puzzles in one tier the sequence repeats.**
+    `PuzzleLibrary.Next` resets `progress.Played` to zero at bank exhaustion
+    while keeping `progress.Offset`, so the walk starts over from the same
+    stride and the same offset and deals the same puzzles in the same order.
+    Story 59 says no puzzle is served twice; this is the one place that is not
+    literally true.
+
+    It is left as it is. 2,000 puzzles per tier is a long way past any real
+    player, the alternative is either refusing to deal or carrying a played-set
+    per tier in the save file, and the honest fix is more content rather than
+    more bookkeeping. Recorded here so it is a known limit rather than a comment
+    in one method.
+
+38. **`SaveStore.Quarantine` is deliberate, and is not a requirement.** No
+    ticket asked for it. When a save file fails to parse, the store copies it to
+    `<save>.unreadable` before starting fresh, so a corruption that would
+    otherwise be overwritten within seconds can still be looked at. It writes
+    one fixed filename rather than accumulating copies, and every failure inside
+    it is swallowed with a warning, so the worst case is a duplicate of a file
+    that is already unusable. Kept, and recorded here so a later reader does not
+    take it for a criterion someone wrote down.
