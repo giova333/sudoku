@@ -55,6 +55,27 @@ namespace Sudoku.Game.Bootstrap
             return text;
         }
 
+        /// <summary>
+        /// A filled panel carrying a centred label and a <see cref="UnityEngine.UI.Button"/>.
+        /// Every greybox screen builds the same three objects, so the recipe
+        /// lives here rather than once per screen. Callers position the result
+        /// with <see cref="Place"/>.
+        /// </summary>
+        public static Button Button(string name, Transform parent, string text, int size,
+            Color fill, Color textColor)
+        {
+            var image = Panel(name, parent, fill);
+            image.raycastTarget = true;
+
+            var label = Label("Label", image.rectTransform, size, textColor);
+            Stretch(label.rectTransform);
+            label.text = text;
+
+            var button = image.gameObject.AddComponent<Button>();
+            button.targetGraphic = image;
+            return button;
+        }
+
         /// <summary>Anchors a rect to fill its parent with the given insets.</summary>
         public static void Stretch(RectTransform rect, float left = 0, float bottom = 0, float right = 0, float top = 0)
         {
