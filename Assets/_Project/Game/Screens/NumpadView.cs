@@ -1,4 +1,5 @@
 using System;
+using Sudoku.Core.Copy;
 using Sudoku.Core.Session;
 using Sudoku.Game.Bootstrap;
 using UnityEngine;
@@ -69,7 +70,7 @@ namespace Sudoku.Game.Screens
 
                 var label = Ui.Label("Label", image.rectTransform, 20, LabelColor);
                 Ui.Stretch(label.rectTransform);
-                label.text = action.ToString();
+                label.text = ActionLabel(action);
 
                 var button = image.gameObject.AddComponent<Button>();
                 button.targetGraphic = image;
@@ -124,6 +125,22 @@ namespace Sudoku.Game.Screens
         }
 
         /// <summary>
+        /// What an action button says. The pad's enum lives here and the copy
+        /// table lives in Core, so the two are married in one place rather than
+        /// Core being taught about a presentation enum.
+        /// </summary>
+        static string ActionLabel(PadAction action)
+        {
+            switch (action)
+            {
+                case PadAction.Undo: return CopyTable.PadUndo;
+                case PadAction.Erase: return CopyTable.PadErase;
+                case PadAction.Notes: return CopyTable.PadNotes;
+                default: return CopyTable.PadHint;
+            }
+        }
+
+        /// <summary>
         /// Greys out digits that are fully placed, and shows how many of each
         /// remain.
         /// </summary>
@@ -147,7 +164,7 @@ namespace Sudoku.Game.Screens
                 _digitLabels[digit].color = exhausted
                     ? new Color(LabelColor.r, LabelColor.g, LabelColor.b, 0.35f)
                     : LabelColor;
-                _digitBadges[digit].text = exhausted ? "" : remaining.ToString();
+                _digitBadges[digit].text = exhausted ? string.Empty : remaining.ToString();
             }
 
             _notesBack.color = notesMode ? ButtonActive : ButtonColor;
@@ -157,7 +174,9 @@ namespace Sudoku.Game.Screens
             // many hints are left.
             var pending = session.PendingHint != null;
             _hintBack.color = pending ? HintPending : ButtonColor;
-            _hintLabel.text = pending ? "Fill it" : $"Hint {session.HintsRemaining}";
+            _hintLabel.text = pending
+                ? CopyTable.PadHintFill
+                : CopyTable.PadHintCount(session.HintsRemaining);
         }
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using Sudoku.Core.Copy;
 using Sudoku.Core.Difficulty;
 using Sudoku.Core.Session;
 using Sudoku.Game.Bootstrap;
@@ -38,10 +39,10 @@ namespace Sudoku.Game.Screens
         public Action HomeTapped;
 
         /// <summary>
-        /// What the card says about the solve. Ticket #12 assigns a function
-        /// that picks from the reaction pools; until then the line is left
-        /// blank, because a single hardcoded joke would be worse than silence
-        /// and would have to be found and deleted later.
+        /// What the card says about the solve, supplied by the composition root
+        /// from <see cref="Sudoku.Core.Copy.ReactionPicker"/>. The card asks
+        /// rather than chooses, because "which line" depends on what the player
+        /// has already read this session and no view should be keeping that.
         /// </summary>
         public Func<PuzzleResult, string> Reaction;
 
@@ -59,7 +60,7 @@ namespace Sudoku.Game.Screens
 
             var title = Ui.Label("Title", rect, 96, TitleColor);
             Ui.Place(title.rectTransform, new Vector2(0, 560), new Vector2(800, 140));
-            title.text = "Solved";
+            title.text = CopyTable.ResultsTitle;
 
             view._tier = Ui.Label("Tier", rect, 34, MutedColor);
             Ui.Place(view._tier.rectTransform, new Vector2(0, 460), new Vector2(800, 60));
@@ -79,10 +80,10 @@ namespace Sudoku.Game.Screens
             Ui.Place(view._reaction.rectTransform, new Vector2(0, 80), new Vector2(880, 60));
             view._reaction.text = string.Empty;
 
-            var next = AddButton(rect, "Next Puzzle", -80, PrimaryColor, LabelColor);
+            var next = AddButton(rect, CopyTable.ResultsNext, -80, PrimaryColor, LabelColor);
             next.onClick.AddListener(() => view.NextTapped?.Invoke());
 
-            var home = AddButton(rect, "Home", -220, ButtonColor, LabelColor);
+            var home = AddButton(rect, CopyTable.ResultsHome, -220, ButtonColor, LabelColor);
             home.onClick.AddListener(() => view.HomeTapped?.Invoke());
 
             return view;
@@ -108,19 +109,18 @@ namespace Sudoku.Game.Screens
         {
             if (_result == null) return;
 
-            _tier.text = _result.Tier.ToString();
+            _tier.text = CopyTable.Tier(_result.Tier);
             _time.text = Clock(_result.ElapsedSeconds);
-            _counters.text = $"{Plural(_result.MistakeCount, "mistake")}    " +
-                             $"{Plural(_result.HintsUsed, "hint")}";
+            _counters.text = CopyTable.ResultsCounters(_result.MistakeCount, _result.HintsUsed);
 
             if (_result.IsNewBest)
             {
-                _best.text = "New best time";
+                _best.text = CopyTable.ResultsNewBest;
                 _best.color = CelebrateColor;
             }
             else
             {
-                _best.text = $"Best {Clock(_result.BestSeconds)}";
+                _best.text = CopyTable.ResultsBest(Clock(_result.BestSeconds));
                 _best.color = MutedColor;
             }
 
@@ -133,9 +133,6 @@ namespace Sudoku.Game.Screens
             var rest = Mathf.FloorToInt(seconds % 60f);
             return $"{minutes:00}:{rest:00}";
         }
-
-        static string Plural(int count, string noun) =>
-            count == 1 ? $"1 {noun}" : $"{count} {noun}s";
 
         static Button AddButton(Transform parent, string text, float y, Color fill, Color textColor)
         {

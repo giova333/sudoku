@@ -1,4 +1,5 @@
 using System;
+using Sudoku.Core.Copy;
 using Sudoku.Core.Persistence;
 using Sudoku.Game.Bootstrap;
 using UnityEngine;
@@ -23,9 +24,6 @@ namespace Sudoku.Game.Screens
         static readonly Color ButtonColor = new Color(0.93f, 0.94f, 0.96f);
         static readonly Color PrimaryColor = new Color(0.55f, 0.75f, 0.98f);
         static readonly Color WarnColor = new Color(0.97f, 0.80f, 0.55f);
-
-        const string FreshLabel = "Start Fresh";
-        const string ConfirmLabel = "Lose this puzzle? Tap again";
 
         RectTransform _root;
         Text _title;
@@ -59,7 +57,7 @@ namespace Sudoku.Game.Screens
             view._detail = Ui.Label("Detail", rect, 26, MutedColor);
             Ui.Place(view._detail.rectTransform, new Vector2(0, 420), new Vector2(800, 60));
 
-            var resume = AddButton(rect, "Resume", 140, PrimaryColor, LabelColor);
+            var resume = AddButton(rect, CopyTable.ResumeResume, 140, PrimaryColor, LabelColor);
             resume.onClick.AddListener(() =>
             {
                 var slot = view._slot;
@@ -67,12 +65,12 @@ namespace Sudoku.Game.Screens
                 view.ResumeTapped?.Invoke(slot);
             });
 
-            var fresh = AddButton(rect, FreshLabel, 0, ButtonColor, LabelColor);
+            var fresh = AddButton(rect, CopyTable.ResumeStartFresh, 0, ButtonColor, LabelColor);
             view._freshFill = fresh.targetGraphic as Image;
             view._freshText = fresh.GetComponentInChildren<Text>();
             fresh.onClick.AddListener(view.OnStartFreshTapped);
 
-            var back = AddButton(rect, "Back", -140, ButtonColor, LabelColor);
+            var back = AddButton(rect, CopyTable.ResumeBack, -140, ButtonColor, LabelColor);
             back.onClick.AddListener(() =>
             {
                 view.Disarm();
@@ -81,7 +79,7 @@ namespace Sudoku.Game.Screens
 
             var note = Ui.Label("Note", rect, 24, MutedColor);
             Ui.Place(note.rectTransform, new Vector2(0, -280), new Vector2(800, 40));
-            note.text = "Starting fresh throws this puzzle away for good.";
+            note.text = CopyTable.ResumeNote;
 
             return view;
         }
@@ -91,8 +89,8 @@ namespace Sudoku.Game.Screens
         public void Offer(SaveSlot slot)
         {
             _slot = slot ?? throw new ArgumentNullException(nameof(slot));
-            _title.text = $"{slot.Tier} in progress";
-            _detail.text = $"You are {Ui.Clock(slot.ElapsedSeconds)} into this puzzle.";
+            _title.text = CopyTable.ResumeTitle(CopyTable.Tier(slot.Tier));
+            _detail.text = CopyTable.ResumeDetail(Ui.Clock(slot.ElapsedSeconds));
         }
 
         public void OnShow() => Disarm();
@@ -109,7 +107,7 @@ namespace Sudoku.Game.Screens
             if (!_freshArmed)
             {
                 _freshArmed = true;
-                _freshText.text = ConfirmLabel;
+                _freshText.text = CopyTable.ResumeStartFreshConfirm;
                 _freshFill.color = WarnColor;
                 return;
             }
@@ -122,7 +120,7 @@ namespace Sudoku.Game.Screens
         void Disarm()
         {
             _freshArmed = false;
-            _freshText.text = FreshLabel;
+            _freshText.text = CopyTable.ResumeStartFresh;
             _freshFill.color = ButtonColor;
         }
 

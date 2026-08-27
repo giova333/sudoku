@@ -1,4 +1,5 @@
 using System;
+using Sudoku.Core.Copy;
 using Sudoku.Core.Difficulty;
 using Sudoku.Game.Bootstrap;
 using UnityEngine;
@@ -53,11 +54,11 @@ namespace Sudoku.Game.Screens
 
             var title = Ui.Label("Title", rect, 80, TitleColor);
             Ui.Place(title.rectTransform, new Vector2(0, 520), new Vector2(880, 130));
-            title.text = "Out of hearts";
+            title.text = CopyTable.GameOverTitle;
 
             var blurb = Ui.Label("Blurb", rect, 30, MutedColor);
             Ui.Place(blurb.rectTransform, new Vector2(0, 420), new Vector2(880, 60));
-            blurb.text = "The puzzle is still here whenever you want it.";
+            blurb.text = CopyTable.GameOverBlurb;
 
             view._tier = Ui.Label("Tier", rect, 32, MutedColor);
             Ui.Place(view._tier.rectTransform, new Vector2(0, 330), new Vector2(800, 50));
@@ -68,16 +69,16 @@ namespace Sudoku.Game.Screens
             // The offer is present and off rather than hidden. A button that
             // appears the day monetization ships is a surprise; a button that
             // has always been there, greyed, with a reason under it, is not.
-            view._moreHearts = AddButton(rect, "More Hearts", 120, PrimaryColor, LabelColor);
+            view._moreHearts = AddButton(rect, CopyTable.GameOverMoreHearts, 120, PrimaryColor, LabelColor);
             view._moreHearts.onClick.AddListener(() => view.MoreHeartsTapped?.Invoke());
 
             view._refillNote = Ui.Label("RefillNote", rect, 24, DisabledColor);
             Ui.Place(view._refillNote.rectTransform, new Vector2(0, 46), new Vector2(880, 40));
 
-            var restart = AddButton(rect, "Start Over", -60, ButtonColor, LabelColor);
+            var restart = AddButton(rect, CopyTable.GameOverRestart, -60, ButtonColor, LabelColor);
             restart.onClick.AddListener(() => view.RestartTapped?.Invoke());
 
-            var home = AddButton(rect, "Home", -200, ButtonColor, LabelColor);
+            var home = AddButton(rect, CopyTable.GameOverHome, -200, ButtonColor, LabelColor);
             home.onClick.AddListener(() => view.HomeTapped?.Invoke());
 
             return view;
@@ -89,8 +90,8 @@ namespace Sudoku.Game.Screens
         /// </summary>
         public void Show(DifficultyTier tier, int mistakeCount)
         {
-            _tier.text = tier.ToString();
-            _counters.text = mistakeCount == 1 ? "1 mistake" : $"{mistakeCount} mistakes";
+            _tier.text = CopyTable.Tier(tier);
+            _counters.text = CopyTable.GameOverMistakes(mistakeCount);
         }
 
         public void OnShow()
@@ -98,7 +99,7 @@ namespace Sudoku.Game.Screens
             var available = RefillAvailable != null && RefillAvailable();
 
             _moreHearts.interactable = available;
-            _refillNote.text = available ? string.Empty : "Heart refills are not available yet.";
+            _refillNote.text = available ? string.Empty : CopyTable.GameOverRefillUnavailable;
         }
 
         public void OnHide()
