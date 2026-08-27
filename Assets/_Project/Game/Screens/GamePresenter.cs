@@ -4,6 +4,7 @@ using Sudoku.Core.Model;
 using Sudoku.Core.Session;
 using Sudoku.Game.Board;
 using Sudoku.Game.Content;
+using Sudoku.Game.Settings;
 using UnityEngine;
 
 namespace Sudoku.Game.Screens
@@ -16,6 +17,7 @@ namespace Sudoku.Game.Screens
     public sealed class GamePresenter : MonoBehaviour, IScreen
     {
         PuzzleLibrary _library;
+        GameSettings _settings;
         RectTransform _root;
         BoardView _board;
         NumpadView _numpad;
@@ -23,14 +25,11 @@ namespace Sudoku.Game.Screens
 
         GameSession _session;
         Puzzle _puzzle;
+        RulesConfig _rules;
         DifficultyTier _tier = DifficultyTier.Easy;
 
         int _selected = -1;
         bool _notesMode;
-
-        // Settings live here until the settings screen exists.
-        bool _showMistakes = true;
-        bool _timerVisible = true;
 
         public RectTransform Root => _root;
 
@@ -48,10 +47,11 @@ namespace Sudoku.Game.Screens
         /// </summary>
         bool IsVisible => _root != null && _root.gameObject.activeInHierarchy;
 
-        public void Initialise(PuzzleLibrary library, RectTransform root, BoardView board,
-            NumpadView numpad, HudView hud)
+        public void Initialise(PuzzleLibrary library, GameSettings settings, RectTransform root,
+            BoardView board, NumpadView numpad, HudView hud)
         {
             _library = library;
+            _settings = settings;
             _root = root;
             _board = board;
             _numpad = numpad;
@@ -61,6 +61,8 @@ namespace Sudoku.Game.Screens
             _numpad.DigitTapped += OnDigitTapped;
             _numpad.DigitHeld += OnDigitHeld;
             _numpad.ActionTapped += OnAction;
+
+            _settings.Changed += OnSettingChanged;
         }
 
         /// <summary>
@@ -76,7 +78,8 @@ namespace Sudoku.Game.Screens
             _tier = tier;
             _puzzle = _library.Next(tier);
 
-            _session = new GameSession(_puzzle, RulesConfig.Default);
+            _rules = _settings.BuildRules();
+            _session = new GameSession(_puzzle, _rules);
             _session.Emitted += OnGameEvent;
             _session.Start();
 
@@ -102,7 +105,7 @@ namespace Sudoku.Game.Screens
             if (_session == null || !IsVisible) return;
 
             _session.Tick(Time.unscaledDeltaTime);
-            _hud.Render(_session, _tier, _timerVisible);
+            _hud.Render(_session, _tier, _settings.TimerVisible.Value);
         }
 
         void OnApplicationPause(bool paused)
@@ -192,9 +195,29 @@ namespace Sudoku.Game.Screens
 
         void Render()
         {
-            _board.Render(_session, _puzzle, _selected, _showMistakes);
+            _board.Render(_session, _puzzle, _selected, _settings.HighlightMistakes.Value);
             _numpad.Render(_session, _notesMode);
-            _hud.Render(_session, _tier, _timerVisible);
+            _hud.Render(_session, _tier, _settings.TimerVisible.Value);
+        }
+
+        /// <summary>
+        /// A preference change reaches the puzzle already in play, because a
+        /// toggle that appears to do nothing reads as a broken toggle.
+        ///
+        /// The one exception is the mistake limit, which <see cref="GameSettings.BuildRules"/>
+        /// snapshots at deal time - the settings screen says so rather than
+        /// leaving the player to wonder.
+        /// </summary>
+        void OnSettingChanged(IPreference preference)
+        {
+            if (_session == null) return;
+
+            // The session reads auto-removal from the rules object it was dealt
+            // on every placement, so writing to that same object is what puts
+            // the change into the puzzle in hand.
+            _rules.AutoRemoveNotes = _settings.AutoRemoveNotes.Value;
+
+            Render();
         }
 
         /// <summary>

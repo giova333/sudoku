@@ -478,3 +478,14 @@ stays the authoritative description of what exists.
     tested at the `GameSession` seam with no engine, rather than a convention
     the presenter has to keep. `PeekHint`/`UseHint` remain for callers that
     want the one-shot form.
+
+14. **Preferences are declarations on one settings service, stored in
+    `PlayerPrefs`.** `GameSettings` owns a `Preference<T>` per setting - read,
+    written, and observed through the preference itself - and republishes every
+    change on one `Changed` stream so analytics needs no per-preference wiring.
+    Values round-trip through invariant text, so a new preference (the theme
+    choice) is one declaration rather than a new storage case. They live in
+    `PlayerPrefs` rather than the save file deliberately: a corrupt or migrated
+    save must not cost the player their settings. Settings-as-an-overlay is a
+    `Navigator` push rather than a second layering mechanism - the puzzle stays
+    on the back stack, and `GamePresenter.OnHide` already suspends its clock.

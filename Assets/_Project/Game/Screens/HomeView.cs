@@ -23,6 +23,7 @@ namespace Sudoku.Game.Screens
 
         public Action ContinueTapped;
         public Action NewGameTapped;
+        public Action SettingsTapped;
 
         /// <summary>
         /// Asked every time Home appears, rather than being told when the
@@ -54,6 +55,9 @@ namespace Sudoku.Game.Screens
             // streak screen are not, so the entry point is present and off.
             var daily = view.AddButton(rect, "Daily", -140, ButtonColor, MutedColor);
             daily.interactable = false;
+
+            var settings = view.AddButton(rect, "Settings", -280, ButtonColor, LabelColor);
+            settings.onClick.AddListener(() => view.SettingsTapped?.Invoke());
 
             return view;
         }

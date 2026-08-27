@@ -23,6 +23,7 @@ namespace Sudoku.Game.Screens
         Text _banner;
 
         public Action BackTapped;
+        public Action SettingsTapped;
 
         public static HudView Create(Transform parent, float width, float y)
         {
@@ -33,6 +34,13 @@ namespace Sudoku.Game.Screens
             var back = Ui.Button("Back", rect, "Back", 18, ButtonColor, Label);
             Ui.Place((RectTransform)back.transform, new Vector2(-width / 2f + 62, 34), new Vector2(116, 46));
             back.onClick.AddListener(() => view.BackTapped?.Invoke());
+
+            // Settings sits inside the game rather than only on Home, because
+            // the moment a player wants the timer gone is the moment it is
+            // ticking at them.
+            var settings = Ui.Button("Settings", rect, "Settings", 18, ButtonColor, Label);
+            Ui.Place((RectTransform)settings.transform, new Vector2(width / 2f - 62, 34), new Vector2(116, 46));
+            settings.onClick.AddListener(() => view.SettingsTapped?.Invoke());
 
             view._tierLabel = Ui.Label("Tier", rect, 22, Muted);
             Ui.Place(view._tierLabel.rectTransform, new Vector2(0, 34), new Vector2(width - 260, 46));
