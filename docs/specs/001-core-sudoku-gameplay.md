@@ -532,3 +532,26 @@ stays the authoritative description of what exists.
     fixture (`Core.Tests/Fixtures/SavePayloads.cs`) means the migration hook is
     exercised by a payload the current serializer cannot produce, which is the
     only way the hook is worth anything.
+
+18. **`puzzle_abandoned` means discarded, not left behind.** Starting another
+    difficulty used to abandon the session in hand, which made the drop-off
+    number a measure of tier-hopping rather than of frustration - the puzzle
+    being "abandoned" was still sitting under its own tier waiting to be
+    continued. The event now fires only where something is actually thrown
+    away: confirming Start Fresh over an in-progress puzzle. When that happens
+    after a cold start there is no session in memory to speak for the puzzle,
+    so the saved one is restored purely in order to emit it - the event
+    therefore always carries the real elapsed time and filled-cell count,
+    through the session's own stream rather than a channel of its own.
+
+19. **Continue is answered by the save file, not by memory.** `HomeView` and
+    `DifficultySelectView` ask a `Func` on every showing and are handed a
+    `SaveSlot` - `SaveData.MostRecent()` for Home, the new
+    `SaveData.ResumableFor(tier)` per row for the picker - so a puzzle survives
+    the launch where being offered it matters most: the one after the process
+    was killed. `GamePresenter.Resume(SaveSlot)` takes the slot rather than a
+    tier for the same reason, and `SaveSlot.ElapsedSeconds` lets a clock be
+    quoted without rebuilding a session to ask. Picking a tier that already has
+    a game shows a `ResumePromptView` rather than assuming either answer; its
+    Start Fresh arms on the first tap and means it on the second, the same
+    warning shape the pause screen's Restart uses.

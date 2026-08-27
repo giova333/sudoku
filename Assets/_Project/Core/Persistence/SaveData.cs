@@ -39,6 +39,19 @@ namespace Sudoku.Core.Persistence
         /// <summary>The in-progress daily puzzle, whatever date it belongs to.</summary>
         public SaveSlot DailySlot => Slot(SaveSlot.DailySlotId);
 
+        /// <summary>
+        /// The puzzle waiting under one difficulty, or null when that tier has
+        /// nothing to go back to. Distinct from <see cref="SlotFor"/>, which
+        /// still answers with a finished or failed run: this is the question a
+        /// difficulty picker asks when it marks the tiers with a game in
+        /// progress.
+        /// </summary>
+        public SaveSlot ResumableFor(DifficultyTier tier)
+        {
+            var slot = SlotFor(tier);
+            return slot != null && slot.CanResume ? slot : null;
+        }
+
         /// <summary>Stores a slot, replacing whatever was under the same id.</summary>
         public void PutSlot(SaveSlot slot)
         {

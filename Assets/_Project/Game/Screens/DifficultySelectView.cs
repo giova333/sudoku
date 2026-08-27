@@ -1,5 +1,6 @@
 using System;
 using Sudoku.Core.Difficulty;
+using Sudoku.Core.Persistence;
 using Sudoku.Game.Bootstrap;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,17 +11,32 @@ namespace Sudoku.Game.Screens
     /// The five tiers, one per row. This is where the greybox difficulty picker
     /// that used to sit in the game HUD belongs: choosing a difficulty is a
     /// decision taken before a puzzle starts, not a control inside one.
+    ///
+    /// A tier the player has a game waiting under says so, because the choice
+    /// between continuing and starting fresh cannot be made from a row that
+    /// looks like every other row.
     /// </summary>
     public sealed class DifficultySelectView : MonoBehaviour, IScreen
     {
         static readonly Color TitleColor = new Color(0.16f, 0.17f, 0.20f);
         static readonly Color LabelColor = new Color(0.16f, 0.17f, 0.20f);
         static readonly Color ButtonColor = new Color(0.93f, 0.94f, 0.96f);
+        static readonly Color DetailColor = new Color(0.45f, 0.47f, 0.52f);
 
         RectTransform _root;
+        DifficultyTier[] _tiers;
+        Text[] _waiting;
 
         public Action<DifficultyTier> TierChosen;
         public Action BackTapped;
+
+        /// <summary>
+        /// The puzzle waiting under a tier, or null when it has none. Asked on
+        /// every showing rather than pushed, for the same reason Home asks: the
+        /// answer lives in the save file and moves without this screen's
+        /// knowledge.
+        /// </summary>
+        public Func<DifficultyTier, SaveSlot> Waiting;
 
         public RectTransform Root => _root;
 
@@ -38,6 +54,9 @@ namespace Sudoku.Game.Screens
             var tiers = (DifficultyTier[])Enum.GetValues(typeof(DifficultyTier));
             var top = (tiers.Length - 1) / 2f;
 
+            view._tiers = tiers;
+            view._waiting = new Text[tiers.Length];
+
             for (var i = 0; i < tiers.Length; i++)
             {
                 var tier = tiers[i];
@@ -45,6 +64,12 @@ namespace Sudoku.Game.Screens
                 Ui.Place((RectTransform)button.transform,
                     new Vector2(0, (top - i) * 150f), new Vector2(640, 110));
                 button.onClick.AddListener(() => view.TierChosen?.Invoke(tier));
+
+                // The marker rides inside the row rather than beside it, so a
+                // row's whole hit area still belongs to the tier it names.
+                var waiting = Ui.Label("Waiting", button.transform, 22, DetailColor);
+                Ui.Place(waiting.rectTransform, new Vector2(180, 0), new Vector2(260, 60));
+                view._waiting[i] = waiting;
             }
 
             var back = Ui.Button("Back", rect, "Back", 28, ButtonColor, LabelColor);
@@ -56,6 +81,11 @@ namespace Sudoku.Game.Screens
 
         public void OnShow()
         {
+            for (var i = 0; i < _tiers.Length; i++)
+            {
+                var slot = Waiting != null ? Waiting(_tiers[i]) : null;
+                _waiting[i].text = slot == null ? "" : $"in progress  {Ui.Clock(slot.ElapsedSeconds)}";
+            }
         }
 
         public void OnHide()

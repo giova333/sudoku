@@ -64,15 +64,28 @@ namespace Sudoku.Game.Bootstrap
             var game = BuildGameScreen(canvas.transform, navigator, settings, saves);
             var pause = PauseView.Create(canvas.transform);
             var settingsScreen = SettingsView.Create(canvas.transform, settings);
+            var resume = ResumePromptView.Create(canvas.transform);
 
             navigator.Register(home);
             navigator.Register(difficulty);
             navigator.Register(game);
             navigator.Register(pause);
             navigator.Register(settingsScreen);
+            navigator.Register(resume);
 
-            home.ContinueAvailable = () => game.HasSession;
-            home.ContinueTapped += navigator.Go<GamePresenter>;
+            // Continue is answered by the save file, never by whether a session
+            // happens to be in memory: a puzzle left mid-solve is still there
+            // after the process is killed, and that is exactly the launch where
+            // being offered it matters most.
+            home.ContinueTarget = () => saves.Data.MostRecent();
+            home.ContinueTapped += () =>
+            {
+                var waiting = saves.Data.MostRecent();
+                if (waiting == null) return;
+
+                game.Resume(waiting);
+                navigator.Go<GamePresenter>();
+            };
             home.NewGameTapped += navigator.Go<DifficultySelectView>;
             home.SettingsTapped += navigator.Go<SettingsView>;
 
@@ -82,9 +95,39 @@ namespace Sudoku.Game.Bootstrap
             settingsScreen.BackTapped += navigator.Back;
 
             difficulty.BackTapped += navigator.Back;
+            difficulty.Waiting = tier => saves.Data.ResumableFor(tier);
             difficulty.TierChosen += tier =>
             {
+                // A tier with a game under it is a question, not an
+                // instruction. Assuming either answer is wrong: resuming
+                // ignores a player who wanted a clean start, and starting
+                // fresh destroys work.
+                var waiting = saves.Data.ResumableFor(tier);
+                if (waiting != null)
+                {
+                    resume.Offer(waiting);
+                    navigator.Go<ResumePromptView>();
+                    return;
+                }
+
                 game.StartPuzzle(tier);
+                navigator.Replace<GamePresenter>();
+            };
+
+            resume.BackTapped += navigator.Back;
+            // Back first, so the puzzle takes the difficulty picker's place on
+            // the stack rather than sitting on top of it: leaving the game
+            // lands on Home either way in.
+            resume.ResumeTapped += waiting =>
+            {
+                navigator.Back();
+                game.Resume(waiting);
+                navigator.Replace<GamePresenter>();
+            };
+            resume.StartFreshConfirmed += waiting =>
+            {
+                navigator.Back();
+                game.StartFresh(waiting.Tier);
                 navigator.Replace<GamePresenter>();
             };
 
