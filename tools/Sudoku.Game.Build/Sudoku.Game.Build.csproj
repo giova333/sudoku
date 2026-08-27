@@ -29,5 +29,6 @@
     <Reference Include="$(UnityScriptAssemblies)/Unity.TextMeshPro.dll" Private="false" />
     <Reference Include="$(UnityScriptAssemblies)/Unity.InputSystem.dll" Private="false" />
     <Reference Include="$(UnityScriptAssemblies)/Unity.InputSystem.ForUI.dll" Private="false" />
+    <Reference Include="$(UnityScriptAssemblies)/PrimeTween.Runtime.dll" Private="false" />
   </ItemGroup>
 </Project>
