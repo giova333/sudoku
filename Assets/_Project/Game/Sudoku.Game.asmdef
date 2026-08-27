@@ -4,9 +4,7 @@
     "references": [
         "Sudoku.Core",
         "UnityEngine.UI",
-        "Unity.TextMeshPro",
-        "Unity.InputSystem",
-        "PrimeTween"
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

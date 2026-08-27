@@ -388,3 +388,51 @@ Established here for use in all subsequent specs and code.
 - **Generation cost for the top tiers.** Master-grade puzzles with relaxed symmetry may need many generate-and-discard cycles. This is an offline bake cost, so it is a build-time inconvenience rather than a player-facing risk — but a generous attempt budget and a progress report in the bake tool are warranted.
 - **The humour is the hardest thing to get right and the easiest to get wrong.** Deadpan lands or grates with little middle ground, and it is the one element here that cannot be validated by a test. Keeping it entirely outside the puzzle limits the blast radius; keeping it in one table makes a full-voice rewrite cheap.
 - **Two fonts plus a bouncy motion language is a real polish burden** for a solo effort. If step 7 threatens the schedule, the correct cut is motion complexity, not the theme system — the theme system is what future cosmetics revenue depends on.
+
+---
+
+## Addendum: deviations recorded during implementation
+
+These were decided while building step 1-3 and are recorded here so the spec
+stays the authoritative description of what exists.
+
+1. **A standalone test/bake runner under `tools/`.** Unity ships a full .NET 8
+   SDK inside the editor install. Because `Sudoku.Core` is engine-free, the same
+   source files are also compiled by three small `dotnet` projects: a test
+   runner (`tools/test.sh`), the bank baker (`tools/bake.sh`), and the bank
+   verifier (`tools/verify-banks.sh`). This buys a ~5ms test loop instead of
+   ~60s of Unity batchmode, works while the editor is open, allows CI to rebuild
+   banks with no Unity licence, and mechanically enforces Core's zero-
+   `UnityEngine`-references rule. These are additional runners over the same
+   code, not a fork: the tests are ordinary EditMode tests and still run in the
+   Unity Test Runner, and the editor bake window calls identical Core code.
+
+2. **A hand-rolled PRNG instead of `System.Random`.** The spec requires a bake
+   to be reproducible from its seed. `System.Random` makes no cross-runtime
+   guarantee across .NET, Mono and IL2CPP, so `DeterministicRandom` owns the
+   algorithm.
+
+3. **Grade-aware carving rather than rejection sampling.** Carving greedily for
+   uniqueness produces an Easy puzzle roughly once in sixty attempts, which
+   makes rejection sampling unusable at the easy end. Clues are therefore
+   removed only while the puzzle stays at or below the target tier.
+
+4. **Bank format is one byte per cell, not two nibbles per cell.** The spec
+   estimated 4 bits of clue plus 4 bits of solution packed into 81 bytes per
+   puzzle. That is what shipped - one byte holds both nibbles - so the size
+   estimate stands at 81 bytes per puzzle.
+
+5. **Daily banks are per-tier.** The spec described a single daily bank with a
+   weekday difficulty curve. Since the weekday selects the tier and the date
+   hash selects the puzzle, the tier must be chosen before indexing - so the
+   daily set is five banks, one per tier, kept separate from the main
+   progression banks.
+
+6. **`Sudoku.Game` currently references only `Sudoku.Core`, `UnityEngine.UI`
+   and `Unity.TextMeshPro`.** PrimeTween and the Input System are installed but
+   not yet referenced by any assembly, because an unresolved assembly-definition
+   reference breaks the whole Unity compile. They are added back when code
+   actually uses them, in the skin and input steps.
+
+7. **The bundle identifier is a deliberate placeholder** (`com.changeme.sudoku`)
+   pending a decision. It is permanent once published.
