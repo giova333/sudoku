@@ -1,9 +1,11 @@
 using System;
 using Sudoku.Core.Difficulty;
 using Sudoku.Core.Model;
+using Sudoku.Core.Persistence;
 using Sudoku.Core.Session;
 using Sudoku.Game.Board;
 using Sudoku.Game.Content;
+using Sudoku.Game.Save;
 using UnityEngine;
 
 namespace Sudoku.Game.Screens
@@ -16,11 +18,13 @@ namespace Sudoku.Game.Screens
     public sealed class GamePresenter : MonoBehaviour
     {
         PuzzleLibrary _library;
+        SaveStore _saves;
         BoardView _board;
         NumpadView _numpad;
         HudView _hud;
 
         GameSession _session;
+        SaveSlot _slot;
         Puzzle _puzzle;
         DifficultyTier _tier = DifficultyTier.Easy;
 
@@ -31,9 +35,11 @@ namespace Sudoku.Game.Screens
         bool _showMistakes = true;
         bool _timerVisible = true;
 
-        public void Initialise(PuzzleLibrary library, BoardView board, NumpadView numpad, HudView hud)
+        public void Initialise(PuzzleLibrary library, SaveStore saves, BoardView board, NumpadView numpad,
+            HudView hud)
         {
             _library = library;
+            _saves = saves;
             _board = board;
             _numpad = numpad;
             _hud = hud;
@@ -53,15 +59,43 @@ namespace Sudoku.Game.Screens
                 _session.Abandon();
 
             _tier = tier;
-            _puzzle = _library.Next(tier);
 
-            _session = new GameSession(_puzzle, RulesConfig.Default);
+            // A half-finished puzzle of this difficulty outranks a fresh one:
+            // starting a quick Easy game must never eat a stalled Expert.
+            var waiting = _saves.Slot(tier);
+            if (waiting != null && waiting.CanResume)
+            {
+                _slot = waiting;
+                _puzzle = waiting.ToPuzzle();
+                _session = waiting.ToSession();
+            }
+            else
+            {
+                _puzzle = _library.Next(tier, out var bankIndex);
+                _slot = SaveSlot.ForTier(tier, PuzzleLibrary.BankName(tier), bankIndex, _puzzle,
+                    RulesConfig.Default);
+                _session = _slot.ToSession();
+            }
+
             _session.Emitted += OnGameEvent;
             _session.Start();
 
             _selected = -1;
             _notesMode = false;
+            Save();
             Render();
+        }
+
+        /// <summary>
+        /// Autosave. It fires after every committed move because a mobile
+        /// process is killed without warning - there is no later to write in.
+        /// </summary>
+        void Save()
+        {
+            if (_saves == null || _slot == null) return;
+
+            _slot.Session = _session.Capture();
+            _saves.Put(_slot);
         }
 
         void Update()
@@ -75,15 +109,31 @@ namespace Sudoku.Game.Screens
         void OnApplicationPause(bool paused)
         {
             if (_session == null) return;
-            if (paused) _session.Pause();
-            else _session.Resume();
+            if (!paused)
+            {
+                _session.Resume();
+                return;
+            }
+
+            // The process may never be scheduled again, so this write cannot
+            // wait for a background thread.
+            _session.Pause();
+            Save();
+            _saves.Flush();
         }
 
         void OnApplicationFocus(bool focused)
         {
             if (_session == null) return;
-            if (focused) _session.Resume();
-            else _session.Pause();
+            if (focused)
+            {
+                _session.Resume();
+                return;
+            }
+
+            _session.Pause();
+            Save();
+            _saves.Flush();
         }
 
         void OnCellTapped(int index)
@@ -99,6 +149,7 @@ namespace Sudoku.Game.Screens
             if (_notesMode) _session.ToggleNote(_selected, digit);
             else _session.Place(_selected, digit);
 
+            Save();
             Render();
         }
 
@@ -106,6 +157,7 @@ namespace Sudoku.Game.Screens
         {
             if (_selected < 0) return;
             _session.ToggleNote(_selected, digit);
+            Save();
             Render();
         }
 
@@ -130,6 +182,7 @@ namespace Sudoku.Game.Screens
                         _selected = hint.CellIndex;
                     break;
             }
+            Save();
             Render();
         }
 

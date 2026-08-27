@@ -1,5 +1,6 @@
 using Sudoku.Game.Board;
 using Sudoku.Game.Content;
+using Sudoku.Game.Save;
 using Sudoku.Game.Screens;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -57,8 +58,9 @@ namespace Sudoku.Game.Bootstrap
             var hud = HudView.Create(canvas.transform, DesignResolution.x - margin * 2f,
                 120 + boardSize / 2f + 90f);
 
+            var saves = new SaveStore();
             var presenter = gameObject.AddComponent<GamePresenter>();
-            presenter.Initialise(new PuzzleLibrary(), board, numpad, hud);
+            presenter.Initialise(new PuzzleLibrary(saves), saves, board, numpad, hud);
         }
 
         Canvas BuildCanvas()
