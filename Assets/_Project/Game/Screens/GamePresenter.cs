@@ -38,9 +38,11 @@ namespace Sudoku.Game.Screens
         public RectTransform Root => _root;
 
         /// <summary>
-        /// Whether there is a puzzle worth going back to. Leaving the game
-        /// screen suspends the session rather than ending it, so Home can offer
-        /// to continue it.
+        /// Whether the session in hand is still playable. Leaving the game
+        /// screen suspends it rather than ending it, so coming back to the same
+        /// puzzle costs nothing - but what Home offers to continue is read from
+        /// the save file, not from here: after a cold start there is a puzzle
+        /// waiting and no session to say so.
         /// </summary>
         public bool HasSession => _session != null && _session.Status == SessionStatus.InProgress;
 
@@ -78,46 +80,125 @@ namespace Sudoku.Game.Screens
         /// </summary>
         public void StartPuzzle(DifficultyTier tier)
         {
-            if (_session != null && _session.Status == SessionStatus.InProgress)
-                _session.Abandon();
-
-            _tier = tier;
-
             // A half-finished puzzle of this difficulty outranks a fresh one:
             // starting a quick Easy game must never eat a stalled Expert.
             var waiting = _saves != null ? _saves.Slot(tier) : null;
             if (waiting != null && waiting.CanResume)
             {
-                _slot = waiting;
-
-                // A resumed puzzle keeps the rules it was dealt under: the
-                // mistake limit is a snapshot taken at deal time, and a
-                // settings change must not rewrite a game already being scored.
-                if (_slot.Rules == null) _slot.Rules = _settings.BuildRules();
-                _rules = _slot.Rules;
-
-                // Auto-removal is the one rule that is not a snapshot, so a
-                // resumed puzzle picks up whatever the toggle says now.
-                _rules.AutoRemoveNotes = _settings.AutoRemoveNotes.Value;
-
-                _puzzle = _slot.ToPuzzle();
-                _session = _slot.ToSession();
-            }
-            else
-            {
-                _rules = _settings.BuildRules();
-                _puzzle = _library.Next(tier, out var bankIndex);
-                _slot = SaveSlot.ForTier(tier, PuzzleLibrary.BankName(tier), bankIndex, _puzzle, _rules);
-                _session = _slot.ToSession();
+                Resume(waiting);
+                return;
             }
 
+            Deal(tier);
+        }
+
+        /// <summary>
+        /// Puts the player back in front of one particular saved puzzle - what
+        /// Home's Continue does. It takes the slot rather than a tier because
+        /// the save file is what offers it: after a cold start there is no
+        /// session in memory to ask, and the newest slot is not necessarily the
+        /// one the player last chose a difficulty for.
+        /// </summary>
+        public void Resume(SaveSlot slot)
+        {
+            if (slot == null) throw new ArgumentNullException(nameof(slot));
+
+            // The session already in hand is this same puzzle, only never
+            // older than the file - rebuilding it from the last write would
+            // gain nothing and drop whatever has happened since.
+            if (_slot != null && _slot.SlotId == slot.SlotId && HasSession) return;
+
+            _tier = slot.Tier;
+            _slot = slot;
+
+            // A resumed puzzle keeps the rules it was dealt under: the mistake
+            // limit is a snapshot taken at deal time, and a settings change
+            // must not rewrite a game already being scored.
+            if (_slot.Rules == null) _slot.Rules = _settings.BuildRules();
+            _rules = _slot.Rules;
+
+            // Auto-removal is the one rule that is not a snapshot, so a resumed
+            // puzzle picks up whatever the toggle says now.
+            _rules.AutoRemoveNotes = _settings.AutoRemoveNotes.Value;
+
+            _puzzle = _slot.ToPuzzle();
+            Adopt(_slot.ToSession());
+        }
+
+        /// <summary>
+        /// Throws away whatever was waiting under this tier and deals a new
+        /// puzzle over it. Only ever reached through a confirmation, because
+        /// what it discards cannot be got back.
+        /// </summary>
+        public void StartFresh(DifficultyTier tier)
+        {
+            AbandonWaiting(tier);
+            Deal(tier);
+        }
+
+        /// <summary>Hands the player a puzzle of this tier they have not been
+        /// served before.</summary>
+        void Deal(DifficultyTier tier)
+        {
+            _tier = tier;
+            _rules = _settings.BuildRules();
+            _puzzle = _library.Next(tier, out var bankIndex);
+            _slot = SaveSlot.ForTier(tier, PuzzleLibrary.BankName(tier), bankIndex, _puzzle, _rules);
+            Adopt(_slot.ToSession());
+        }
+
+        /// <summary>
+        /// Takes a session on: listen to it, start it, forget whatever the last
+        /// puzzle had selected, write it down and draw it.
+        /// </summary>
+        void Adopt(GameSession session)
+        {
+            _session = session;
             _session.Emitted += OnGameEvent;
+
+            // Idempotent, and a restored session carries the fact that it has
+            // already started - so a resume is never counted as a second start.
             _session.Start();
 
             _selected = -1;
             _notesMode = false;
             Save();
             Render();
+        }
+
+        /// <summary>
+        /// Says out loud that the puzzle waiting under this tier is being
+        /// thrown away, and then forgets it.
+        ///
+        /// The announcement goes out on the session's own event stream rather
+        /// than a channel of its own, so a drop-off carries the same counters -
+        /// the clock and how much of the board was filled - as every other
+        /// event a listener sees. When there is no session in memory to speak
+        /// for the puzzle, the saved one is restored purely so that it can.
+        ///
+        /// Leaving a puzzle for another difficulty is not this: that one is
+        /// still sitting under its own tier waiting to be continued, and
+        /// counting it as abandoned would make the drop-off numbers a measure
+        /// of tier-hopping instead of frustration.
+        /// </summary>
+        void AbandonWaiting(DifficultyTier tier)
+        {
+            var isCurrent = _slot != null && _slot.SlotId == SaveSlot.IdFor(tier);
+            if (isCurrent && HasSession)
+            {
+                _session.Abandon();
+            }
+            else
+            {
+                var waiting = _saves != null ? _saves.Slot(tier) : null;
+                if (waiting == null || !waiting.CanResume) return;
+
+                var abandoned = waiting.ToSession();
+                abandoned.Emitted += OnGameEvent;
+                abandoned.Abandon();
+            }
+
+            if (_saves != null) _saves.Clear(tier);
         }
 
         /// <summary>
@@ -337,6 +418,11 @@ namespace Sudoku.Game.Screens
                     break;
                 case GameEventKind.HeartsDepleted:
                     Debug.Log("[sudoku] out of hearts");
+                    break;
+                case GameEventKind.PuzzleAbandoned:
+                    Debug.Log($"[sudoku] abandoned at {e.ElapsedSeconds:F0}s, " +
+                              $"{Core.Model.Board.CellCount - e.EmptyCellCount} of " +
+                              $"{Core.Model.Board.CellCount} cells filled");
                     break;
             }
         }

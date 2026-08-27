@@ -76,6 +76,17 @@ namespace Sudoku.Game.Bootstrap
             return button;
         }
 
+        /// <summary>
+        /// An elapsed time as mm:ss. Home, difficulty select and the resume
+        /// prompt all quote the same clock at the player, so how it reads lives
+        /// in one place rather than three.
+        /// </summary>
+        public static string Clock(float seconds)
+        {
+            var whole = Mathf.Max(0, Mathf.FloorToInt(seconds));
+            return $"{whole / 60:00}:{whole % 60:00}";
+        }
+
         /// <summary>Anchors a rect to fill its parent with the given insets.</summary>
         public static void Stretch(RectTransform rect, float left = 0, float bottom = 0, float right = 0, float top = 0)
         {
