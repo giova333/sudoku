@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Compile-only check of the test sources against the NUnit that Unity
+    actually ships, which is older than the NuGet one the fast runner uses.
+
+    Without this the two diverge silently: a test can pass in tools/test.sh and
+    fail to compile in the editor, which is exactly what happened with
+    Is.AnyOf. This builds (never runs) the same files, so any API Unity's NUnit
+    lacks fails in the normal loop instead of in the editor.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>Sudoku.Core.Tests.UnityCheck</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>$(NoWarn);CS1701;CS1702;NU1701</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/_Project/Core.Tests/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Sudoku.Core.Build/Sudoku.Core.Build.csproj" />
+    <Reference Include="../../Library/PackageCache/com.unity.ext.nunit@44f7d31723bd/net472/unity-custom/nunit.framework.dll" Private="false" />
+  </ItemGroup>
+</Project>

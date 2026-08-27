@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Content gate: re-reads baked banks and checks every puzzle in them. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>Sudoku.Verify</AssemblyName>
+    <RootNamespace>Sudoku.Verify</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Sudoku.Core.Build/Sudoku.Core.Build.csproj" />
+  </ItemGroup>
+</Project>
