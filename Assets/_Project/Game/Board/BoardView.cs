@@ -70,12 +70,27 @@ namespace Sudoku.Game.Board
         }
 
         readonly int[] _values = new int[Core.Model.Board.CellCount];
+        readonly bool[] _hintReason = new bool[Core.Model.Board.CellCount];
 
         /// <summary>Redraws every cell from the session's current state.</summary>
         public void Render(GameSession session, Puzzle puzzle, int selected, bool showMistakes)
         {
             for (var i = 0; i < Core.Model.Board.CellCount; i++)
+            {
                 _values[i] = session.ValueAt(i);
+                _hintReason[i] = false;
+            }
+
+            // A revealed hint teaches by showing its working, so the cells that
+            // force the answer are painted alongside the answer's cell.
+            var hint = session.PendingHint;
+            var hintTarget = -1;
+            if (hint != null)
+            {
+                hintTarget = hint.CellIndex;
+                foreach (var reason in hint.ReasonCells)
+                    _hintReason[reason] = true;
+            }
 
             var selectedDigit = selected >= 0 ? _values[selected] : Core.Model.Board.Empty;
 
@@ -86,12 +101,19 @@ namespace Sudoku.Game.Board
 
                 _cells[i].SetValue(value, puzzle.IsGiven(i), mistake);
                 _cells[i].SetNotes(NotesMaskOf(session, i));
-                _cells[i].SetHighlight(HighlightFor(i, selected, selectedDigit));
+                _cells[i].SetHighlight(HighlightFor(i, selected, selectedDigit, hintTarget));
             }
         }
 
-        CellHighlight HighlightFor(int index, int selected, int selectedDigit)
+        CellHighlight HighlightFor(int index, int selected, int selectedDigit, int hintTarget)
         {
+            // A hint waiting for an answer is the loudest thing on the board:
+            // it outranks selection and the scanning aids underneath it.
+            if (index == hintTarget)
+                return CellHighlight.HintTarget;
+            if (_hintReason[index])
+                return CellHighlight.HintReason;
+
             if (index == selected)
                 return CellHighlight.Selected;
             if (selected < 0)

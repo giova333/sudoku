@@ -88,6 +88,10 @@ namespace Sudoku.Game.Screens
 
         void OnCellTapped(int index)
         {
+            // Looking somewhere else answers "no" to a revealed hint, and a
+            // hint that is never taken is never spent.
+            _session.CancelHint();
+
             _selected = index;
             Render();
         }
@@ -111,6 +115,11 @@ namespace Sudoku.Game.Screens
 
         void OnAction(PadAction action)
         {
+            // Every other button is the player changing the subject, which
+            // drops a revealed hint without charging for it.
+            if (action != PadAction.Hint)
+                _session.CancelHint();
+
             switch (action)
             {
                 case PadAction.Undo:
@@ -123,14 +132,29 @@ namespace Sudoku.Game.Screens
                     _notesMode = !_notesMode;
                     break;
                 case PadAction.Hint:
-                    // Peek first so the cell we select is the cell that gets
-                    // filled; both calls take the same preference.
-                    var hint = _session.PeekHint(_selected);
-                    if (hint != null && _session.UseHint(_selected))
-                        _selected = hint.CellIndex;
+                    TapHint();
                     break;
             }
             Render();
+        }
+
+        /// <summary>
+        /// The hint button is one button doing two jobs: the first tap shows
+        /// the cell and the reasoning for free, the second takes it. The
+        /// session owns which of the two the next tap is, so the two halves
+        /// can never disagree about the cell.
+        /// </summary>
+        void TapHint()
+        {
+            if (_session.PendingHint != null)
+            {
+                _session.TakeHint();
+                return;
+            }
+
+            var revealed = _session.RevealHint(_selected);
+            if (revealed != null)
+                _selected = revealed.CellIndex;
         }
 
         void Render()

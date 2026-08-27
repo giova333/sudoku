@@ -27,6 +27,7 @@ namespace Sudoku.Game.Screens
         static readonly Color ButtonActive = new Color(0.55f, 0.75f, 0.98f);
         static readonly Color LabelColor = new Color(0.16f, 0.17f, 0.20f);
         static readonly Color BadgeColor = new Color(0.50f, 0.52f, 0.57f);
+        static readonly Color HintPending = new Color(0.99f, 0.76f, 0.32f);
 
         readonly Button[] _digits = new Button[10];
         readonly Image[] _digitBacks = new Image[10];
@@ -34,6 +35,7 @@ namespace Sudoku.Game.Screens
         readonly Text[] _digitBadges = new Text[10];
 
         Image _notesBack;
+        Image _hintBack;
         Text _hintLabel;
 
         public Action<int> DigitTapped;
@@ -74,7 +76,11 @@ namespace Sudoku.Game.Screens
                 button.onClick.AddListener(() => ActionTapped?.Invoke(action));
 
                 if (action == PadAction.Notes) _notesBack = image;
-                if (action == PadAction.Hint) _hintLabel = label;
+                if (action == PadAction.Hint)
+                {
+                    _hintBack = image;
+                    _hintLabel = label;
+                }
             }
         }
 
@@ -145,7 +151,13 @@ namespace Sudoku.Game.Screens
             }
 
             _notesBack.color = notesMode ? ButtonActive : ButtonColor;
-            _hintLabel.text = $"Hint {session.HintsRemaining}";
+
+            // While a hint is revealed the button is the second half of the
+            // gesture, so it says what the next tap will do rather than how
+            // many hints are left.
+            var pending = session.PendingHint != null;
+            _hintBack.color = pending ? HintPending : ButtonColor;
+            _hintLabel.text = pending ? "Fill it" : $"Hint {session.HintsRemaining}";
         }
     }
 }

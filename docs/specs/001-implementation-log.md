@@ -20,7 +20,7 @@ of that spec's build order. Steps 1-4 landed on `main` before this branch.
 |---|---|---|---|
 | 1 | App shell: screen navigation, Home and Difficulty Select | — | |
 | 2 | Save and resume an in-progress puzzle | — | |
-| 3 | Two-tap technique hint | — | |
+| 3 | Two-tap technique hint | — | Done |
 | 4 | Settings screen with persisted preferences | #1 | |
 | 5 | Pause screen | #1 | |
 | 6 | Continue, and knowing where you left off | #1, #2 | |
