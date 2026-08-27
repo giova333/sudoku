@@ -136,5 +136,18 @@ namespace Sudoku.Core.Tests.Session
             Assert.That(session.PeekHint(), Is.Null);
             Assert.That(session.UseHint(), Is.False);
         }
+
+        [Test]
+        public void Taking_a_hint_honours_the_same_preference_as_peeking_at_one()
+        {
+            var session = NewSession();
+            var peeked = session.PeekHint(preferredCell: 2);
+
+            session.UseHint(preferredCell: 2);
+
+            Assert.That(session.ValueAt(2), Is.EqualTo(peeked.Digit),
+                "peek and use must agree, or the UI highlights one cell and fills another");
+        }
+
     }
 }

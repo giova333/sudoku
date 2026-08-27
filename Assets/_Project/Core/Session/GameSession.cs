@@ -388,10 +388,14 @@ namespace Sudoku.Core.Session
         /// <summary>
         /// Takes the next hint: fills the cell and spends one. A hint is never
         /// spent when there is nothing useful to reveal.
+        ///
+        /// Takes the same <paramref name="preferredCell"/> as
+        /// <see cref="PeekHint"/> so the cell the player was shown is the cell
+        /// that gets filled.
         /// </summary>
-        public bool UseHint()
+        public bool UseHint(int preferredCell = -1)
         {
-            var hint = PeekHint();
+            var hint = PeekHint(preferredCell);
             if (hint == null)
                 return false;
 

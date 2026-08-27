@@ -21,7 +21,7 @@ namespace Sudoku.Editor.Baking
     /// </summary>
     public sealed class PuzzleBankBakeWindow : EditorWindow
     {
-        const string OutputDir = "Assets/_Project/Data/Banks";
+        const string OutputDir = "Assets/_Project/Resources/Banks";
 
         int _mainCount = 2000;
         int _dailyCount = 750;

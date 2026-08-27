@@ -436,3 +436,23 @@ stays the authoritative description of what exists.
 
 7. **The bundle identifier is a deliberate placeholder** (`com.changeme.sudoku`)
    pending a decision. It is permanent once published.
+
+8. **The greybox UI is built in code, not authored as prefabs**, and installs
+   itself via `RuntimeInitializeOnLoadMethod` so no scene has to be edited. For
+   this step that is a benefit: the layout is diffable and reviewable with no
+   binary scene merges. The skin pass revisits it once the visual language is
+   settled.
+
+9. **Greybox text uses legacy `UI.Text` with the engine's built-in font.**
+   TextMeshPro needs its essential resources imported and real font assets
+   generated from Fredoka and Nunito - both editor operations - so TMP arrives
+   with the skin pass. Text only has to be legible at this stage.
+
+10. **Banks live under `Assets/_Project/Resources/Banks/`.** Unity requires the
+    literal folder name `Resources` for runtime loading, so the bake output path
+    moved there from `Data/`.
+
+11. **A compile check for the Unity layer** (`tools/check-game.sh`) builds
+    `Assets/_Project/Game` against Unity's own managed assemblies in about a
+    second. It cannot run anything - there is no engine - but it catches type
+    and API errors without an editor round-trip.

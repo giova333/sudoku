@@ -11,7 +11,7 @@ namespace Sudoku.Bake
     {
         static int Main(string[] args)
         {
-            var outputDir = args.Length > 0 ? args[0] : "Assets/_Project/Data/Banks";
+            var outputDir = args.Length > 0 ? args[0] : "Assets/_Project/Resources/Banks";
             var mainCount = args.Length > 1 ? int.Parse(args[1]) : 2000;
             var dailyCount = args.Length > 2 ? int.Parse(args[2]) : 750;
 

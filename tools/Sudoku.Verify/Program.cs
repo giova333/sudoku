@@ -21,7 +21,7 @@ namespace Sudoku.Verify
     {
         static int Main(string[] args)
         {
-            var dir = args.Length > 0 ? args[0] : "Assets/_Project/Data/Banks";
+            var dir = args.Length > 0 ? args[0] : "Assets/_Project/Resources/Banks";
             if (!Directory.Exists(dir))
             {
                 Console.WriteLine($"No bank directory at {Path.GetFullPath(dir)}");
