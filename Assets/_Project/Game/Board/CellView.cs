@@ -48,8 +48,13 @@ namespace Sudoku.Game.Board
             var view = rect.gameObject.AddComponent<CellView>();
             view.Index = index;
 
+            // A cell is a tile, not a box: it gets the skin's rounded corner but
+            // neither a stroke nor a shadow. Eighty-one of each would be two
+            // hundred and forty-three more graphics for an effect the sheet
+            // underneath already gives the grid as a whole.
             view._background = rect.gameObject.AddComponent<Image>();
             view._background.raycastTarget = true;
+            Ui.Round(view._background, Skin.CellCornerRadius);
             view._backgroundTheme = ThemedGraphic.Attach(view._background, ThemeSlot.CellBackground);
 
             // Nine separate labels in a 3x3 block, rather than one multi-line
@@ -75,12 +80,12 @@ namespace Sudoku.Game.Board
 
             // A non-colour signal for errors, so the board still works for a
             // player who cannot separate the red from the blue.
-            view._errorUnderline = Ui.Panel("ErrorUnderline", rect, ThemeSlot.ErrorDigit);
+            view._errorUnderline = Ui.Rounded("ErrorUnderline", rect, ThemeSlot.ErrorDigit, 3f);
             var underline = view._errorUnderline.rectTransform;
             underline.anchorMin = new Vector2(0.25f, 0f);
             underline.anchorMax = new Vector2(0.75f, 0f);
             underline.offsetMin = new Vector2(0, size * 0.12f);
-            underline.offsetMax = new Vector2(0, size * 0.12f + 2f);
+            underline.offsetMax = new Vector2(0, size * 0.12f + 6f);
             view._errorUnderline.enabled = false;
 
             return view;

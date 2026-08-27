@@ -4,7 +4,6 @@ using Sudoku.Core.Session;
 using Sudoku.Game.Bootstrap;
 using Sudoku.Game.Theme;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace Sudoku.Game.Board
 {
@@ -23,30 +22,36 @@ namespace Sudoku.Game.Board
         {
             var rect = Ui.Rect("Board", parent);
             var view = rect.gameObject.AddComponent<BoardView>();
+            rect.sizeDelta = new Vector2(boardSize, boardSize);
 
             // The sheet behind the cells is also the grid: the separators are
             // the gaps the cells are placed with, so there is one colour here
-            // rather than a backing plus nine drawn lines.
-            var background = rect.gameObject.AddComponent<Image>();
-            background.raycastTarget = false;
-            ThemedGraphic.Attach(background, ThemeSlot.BoardLine);
+            // rather than a backing plus nine drawn lines. It wears the same
+            // chunky box as everything else - the board is the largest object
+            // on the screen, and it would be the one thing floating flat if it
+            // did not sit on a shadow of its own.
+            var sheet = Ui.Box("Sheet", rect, ThemeSlot.BoardLine);
+            Ui.Stretch(sheet.Rect);
+            sheet.Fill.raycastTarget = false;
 
-            const float thin = 1f;
-            const float thick = 3f;
-            const float outer = 3f;
+            // The gaps are wide enough to read as lines against rounded cells:
+            // at a one-unit hairline the cells' own corners would be most of
+            // what shows through, and the 9x9 would stop looking like a grid.
+            const float thin = 3f;
+            const float thick = 8f;
+            const float outer = 12f;
 
             // Solve for a cell size that leaves room for the separators.
             var separators = outer * 2 + thick * 2 + thin * 6;
             var cellSize = (boardSize - separators) / Core.Model.Board.Size;
 
-            rect.sizeDelta = new Vector2(boardSize, boardSize);
             view._cells = new CellView[Core.Model.Board.CellCount];
 
             for (var row = 0; row < Core.Model.Board.Size; row++)
             for (var col = 0; col < Core.Model.Board.Size; col++)
             {
                 var index = row * Core.Model.Board.Size + col;
-                var cell = CellView.Create(rect, index, cellSize);
+                var cell = CellView.Create(sheet.Face, index, cellSize);
 
                 var x = outer + col * cellSize + SeparatorsBefore(col, thin, thick) + cellSize / 2f;
                 var y = outer + row * cellSize + SeparatorsBefore(row, thin, thick) + cellSize / 2f;

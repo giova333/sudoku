@@ -58,22 +58,20 @@ namespace Sudoku.Game.Screens
                 var action = actions[i];
                 var x = -width / 2f + width / actions.Length * (i + 0.5f);
 
-                var image = Ui.Panel($"Action{action}", parent, ThemeSlot.NumpadFill);
-                image.raycastTarget = true;
-                Ui.Place(image.rectTransform, new Vector2(x, 58), new Vector2(buttonWidth, 56));
+                var box = Ui.Box($"Action{action}", parent, ThemeSlot.NumpadFill);
+                Ui.Place(box.Rect, new Vector2(x, 62), new Vector2(buttonWidth, 60));
 
-                var label = Ui.Label("Label", image.rectTransform, 20, ThemeSlot.NumpadLabel);
+                var label = Ui.Label("Label", box.Face, 20, ThemeSlot.NumpadLabel);
                 Ui.Stretch(label.rectTransform);
                 label.text = ActionLabel(action);
 
-                var button = image.gameObject.AddComponent<Button>();
-                button.targetGraphic = image;
+                var button = Ui.Pressable(box);
                 button.onClick.AddListener(() => ActionTapped?.Invoke(action));
 
-                if (action == PadAction.Notes) _notesBack = image.GetComponent<ThemedGraphic>();
+                if (action == PadAction.Notes) _notesBack = box.Theme;
                 if (action == PadAction.Hint)
                 {
-                    _hintBack = image.GetComponent<ThemedGraphic>();
+                    _hintBack = box.Theme;
                     _hintLabel = label;
                 }
             }
@@ -88,22 +86,23 @@ namespace Sudoku.Game.Screens
                 var value = digit;
                 var x = -width / 2f + slot * (digit - 0.5f);
 
-                var image = Ui.Panel($"Digit{digit}", parent, ThemeSlot.NumpadFill);
-                image.raycastTarget = true;
-                Ui.Place(image.rectTransform, new Vector2(x, -32), new Vector2(slot - 6, 84));
+                var box = Ui.Box($"Digit{digit}", parent, ThemeSlot.NumpadFill);
+                Ui.Place(box.Rect, new Vector2(x, -34), new Vector2(slot - 8, 88));
 
-                var label = Ui.Label("Label", image.rectTransform, 32, ThemeSlot.NumpadLabel);
+                var label = Ui.Label("Label", box.Face, 32, ThemeSlot.NumpadLabel);
                 Ui.Stretch(label.rectTransform, 0, 16, 0, 0);
                 label.text = digit.ToString();
 
-                var badge = Ui.Label("Badge", image.rectTransform, 14, ThemeSlot.NumpadBadge);
-                Ui.Stretch(badge.rectTransform, 0, 4, 0, 62);
+                var badge = Ui.Label("Badge", box.Face, 14, ThemeSlot.NumpadBadge);
+                Ui.Stretch(badge.rectTransform, 0, 6, 0, 64);
 
-                var hold = image.gameObject.AddComponent<HoldDetector>();
+                // The hold rides the key rather than its face, because a
+                // pointer that leaves the key has to cancel it - and the face
+                // is the thing that moves out from under the finger.
+                var hold = box.gameObject.AddComponent<HoldDetector>();
                 hold.Held = () => DigitHeld?.Invoke(value);
 
-                var button = image.gameObject.AddComponent<Button>();
-                button.targetGraphic = image;
+                var button = Ui.Pressable(box);
                 button.onClick.AddListener(() =>
                 {
                     // A long press already entered a note; ignore the release.
@@ -112,7 +111,7 @@ namespace Sudoku.Game.Screens
                 });
 
                 _digits[digit] = button;
-                _digitBacks[digit] = image.GetComponent<ThemedGraphic>();
+                _digitBacks[digit] = box.Theme;
                 _digitLabels[digit] = label.GetComponent<ThemedGraphic>();
                 _digitBadges[digit] = badge;
             }

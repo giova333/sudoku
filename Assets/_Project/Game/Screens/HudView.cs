@@ -18,11 +18,16 @@ namespace Sudoku.Game.Screens
         /// <summary>Top-strip geometry. The three buttons are the same size and
         /// are packed from the strip's edges, so the layout holds at any width
         /// the strip is built at.</summary>
-        const float ButtonWidth = 116f;
-        const float ButtonHeight = 46f;
-        const float ButtonRow = 34f;
+        const float StripHeight = 170f;
+        const float ButtonWidth = 124f;
+        const float ButtonHeight = 56f;
+        const float ButtonRow = 52f;
         const float Edge = 4f;
-        const float Gap = 8f;
+        const float Gap = 10f;
+
+        /// <summary>The card the counters are printed on, and where it sits.</summary>
+        const float CardRow = -40f;
+        const float CardHeight = 80f;
 
         Text _tierLabel;
         Text _status;
@@ -38,7 +43,7 @@ namespace Sudoku.Game.Screens
         {
             var rect = Ui.Rect("Hud", parent);
             var view = rect.gameObject.AddComponent<HudView>();
-            Ui.Place(rect, new Vector2(0, y), new Vector2(width, 120));
+            Ui.Place(rect, new Vector2(0, y), new Vector2(width, StripHeight));
 
             // Three controls share the top strip, so their hit areas are laid
             // out from the two edges rather than eyeballed: Back alone on the
@@ -84,13 +89,20 @@ namespace Sudoku.Game.Screens
                 new Vector2((tierLeft + tierRight) / 2f, ButtonRow),
                 new Vector2(tierRight - tierLeft, ButtonHeight));
 
-            view._status = Ui.Label("Status", rect, 20, ThemeSlot.Muted);
-            view._statusTheme = view._status.GetComponent<ThemedGraphic>();
-            Ui.Place(view._status.rectTransform, new Vector2(0, -14), new Vector2(width, 30));
+            // The counters and the banner are printed on a card rather than on
+            // the ground, so the strip reads as one object above the board
+            // instead of as text floating over the wallpaper.
+            var card = Ui.Box("Card", rect, ThemeSlot.CardSurface);
+            Ui.Place(card.Rect, new Vector2(0, CardRow), new Vector2(width, CardHeight));
+            card.Fill.raycastTarget = false;
 
-            view._banner = Ui.Label("Banner", rect, 24, ThemeSlot.Danger);
+            view._status = Ui.Label("Status", card.Face, 20, ThemeSlot.Muted);
+            view._statusTheme = view._status.GetComponent<ThemedGraphic>();
+            Ui.Place(view._status.rectTransform, new Vector2(0, 18), new Vector2(width, 30));
+
+            view._banner = Ui.Label("Banner", card.Face, 24, ThemeSlot.Danger);
             view._bannerTheme = view._banner.GetComponent<ThemedGraphic>();
-            Ui.Place(view._banner.rectTransform, new Vector2(0, -46), new Vector2(width, 30));
+            Ui.Place(view._banner.rectTransform, new Vector2(0, -16), new Vector2(width, 30));
             view._banner.text = string.Empty;
 
             return view;

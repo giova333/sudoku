@@ -65,7 +65,7 @@ namespace Sudoku.Game.Screens
 
                 // The marker rides inside the row rather than beside it, so a
                 // row's whole hit area still belongs to the tier it names.
-                var waiting = Ui.Label("Waiting", button.transform, 22, ThemeSlot.Muted);
+                var waiting = Ui.Label("Waiting", Ui.Face(button), 22, ThemeSlot.Muted);
                 Ui.Place(waiting.rectTransform, new Vector2(180, 0), new Vector2(260, 60));
                 view._waiting[i] = waiting;
             }

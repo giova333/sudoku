@@ -16,7 +16,7 @@ using UnityEngine.UI;
 namespace Sudoku.Game.Bootstrap
 {
     /// <summary>
-    /// The composition root. Builds the canvas and the greybox screens in code
+    /// The composition root. Builds the canvas and every screen in code
     /// and wires the object graph by hand - no DI container until the meta
     /// layer's wiring actually hurts.
     ///
@@ -26,7 +26,7 @@ namespace Sudoku.Game.Bootstrap
     /// rather than wired into the screens around it.
     ///
     /// It installs itself so no scene has to be authored to run the game, which
-    /// keeps the greybox free of binary scene edits.
+    /// keeps the project free of binary scene edits.
     /// </summary>
     public sealed class GameBootstrap : MonoBehaviour
     {
@@ -67,7 +67,12 @@ namespace Sudoku.Game.Bootstrap
             settings.Theme.Observe(Themes.Use);
 
             var canvas = BuildCanvas();
+
+            // The ground goes edge to edge, behind the notch and under the home
+            // indicator, because a letterboxed background reads as a bug. Every
+            // control goes inside the safe rect instead - see SafeAreaFitter.
             Ui.Stretch(Ui.Panel("Background", canvas.transform, ThemeSlot.ScreenBackground).rectTransform);
+            var screens = SafeAreaFitter.Fit(canvas);
 
             var navigator = new Navigator();
 
@@ -87,14 +92,14 @@ namespace Sudoku.Game.Bootstrap
             settings.HapticsEnabled.Observe(on => audio.HapticsEnabled = on);
             Ui.ButtonTapped = () => audio.Play(Sfx.ButtonTap);
 
-            var home = HomeView.Create(canvas.transform);
-            var difficulty = DifficultySelectView.Create(canvas.transform);
-            var game = BuildGameScreen(canvas.transform, navigator, settings, saves, audio);
-            var pause = PauseView.Create(canvas.transform);
-            var settingsScreen = SettingsView.Create(canvas.transform, settings);
-            var resume = ResumePromptView.Create(canvas.transform);
-            var results = ResultsView.Create(canvas.transform);
-            var gameOver = GameOverView.Create(canvas.transform);
+            var home = HomeView.Create(screens);
+            var difficulty = DifficultySelectView.Create(screens);
+            var game = BuildGameScreen(screens, navigator, settings, saves, audio);
+            var pause = PauseView.Create(screens);
+            var settingsScreen = SettingsView.Create(screens, settings);
+            var resume = ResumePromptView.Create(screens);
+            var results = ResultsView.Create(screens);
+            var gameOver = GameOverView.Create(screens);
 
             navigator.Register(home);
             navigator.Register(difficulty);
@@ -279,7 +284,7 @@ namespace Sudoku.Game.Bootstrap
 
             var numpad = NumpadView.Create(root, boardSize, 120 - boardSize / 2f - 130f);
 
-            var hud = HudView.Create(root, boardSize, 120 + boardSize / 2f + 90f);
+            var hud = HudView.Create(root, boardSize, 120 + boardSize / 2f + 105f);
             hud.BackTapped += navigator.Back;
             hud.PauseTapped += navigator.Go<PauseView>;
             hud.SettingsTapped += navigator.Go<SettingsView>;

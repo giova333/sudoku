@@ -57,6 +57,14 @@ namespace Sudoku.Game.Screens
             Ui.Place(title.rectTransform, new Vector2(0, 560), new Vector2(800, 140));
             title.text = CopyTable.ResultsTitle;
 
+            // Everything the solve is worth goes on one card. The screen is
+            // called a results card in the spec and it should look like one -
+            // a single object the player is handed, not five lines of text at
+            // five different heights.
+            var card = Ui.Box("Card", rect, ThemeSlot.CardSurface);
+            Ui.Place(card.Rect, new Vector2(0, 270), new Vector2(900, 460));
+            card.Fill.raycastTarget = false;
+
             view._tier = Ui.Label("Tier", rect, 34, ThemeSlot.Muted);
             Ui.Place(view._tier.rectTransform, new Vector2(0, 460), new Vector2(800, 60));
 

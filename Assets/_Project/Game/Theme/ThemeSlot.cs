@@ -22,6 +22,19 @@ namespace Sudoku.Game.Theme
         /// gaps between cells, so it is the grid lines as much as the backing.</summary>
         BoardLine = 1,
 
+        /// <summary>The face of a panel that carries information rather than a
+        /// tap - the status strip, the results readout.</summary>
+        CardSurface = 2,
+
+        /// <summary>The hard offset shadow every chunky box sits on. One flat
+        /// colour, never a gradient: it is the object's shadow, not a blur.</summary>
+        Shadow = 3,
+
+        /// <summary>The thick stroke round every filled shape. Its own slot
+        /// rather than a darkened fill, because a skin that wants a cream
+        /// outline on a dark ground cannot get there by darkening.</summary>
+        Outline = 4,
+
         // Board cells
         CellBackground = 10,
         CellPeer = 11,
