@@ -34,6 +34,10 @@ namespace Sudoku.Core.Session
 
         readonly List<BoardCommand> _history = new List<BoardCommand>();
 
+        // How many cells the puzzle handed over already filled. Fixed for the
+        // life of the session, so player progress is one subtraction away.
+        readonly int _clueCount;
+
         int _emptyCells;
         bool _started;
 
@@ -54,6 +58,7 @@ namespace Sudoku.Core.Session
             HeartsRemaining = rules.Hearts;
             HintsRemaining = rules.Hints;
             _emptyCells = CountEmpty();
+            _clueCount = Board.CellCount - _emptyCells;
         }
 
         /// <summary>
@@ -205,7 +210,7 @@ namespace Sudoku.Core.Session
 
             handler(new GameEvent(kind, cellIndex, digit, wasCorrect,
                 HeartsRemaining, HintsRemaining, MistakeCount, HintsUsed,
-                ElapsedSeconds, _emptyCells));
+                ElapsedSeconds, _emptyCells, FilledCellCount));
         }
 
         /// <summary>Where the play-through stands. Only InProgress accepts moves.</summary>
@@ -642,6 +647,14 @@ namespace Sudoku.Core.Session
 
         /// <summary>Cells still waiting for a digit.</summary>
         public int EmptyCellCount => _emptyCells;
+
+        /// <summary>
+        /// Cells the player has filled in, the puzzle's clues excluded. This is
+        /// how far they have got, which is not the same question as how full
+        /// the board looks - a Master puzzle starts with far fewer clues than an
+        /// Easy one, and progress has to be comparable across the two.
+        /// </summary>
+        public int FilledCellCount => Board.CellCount - _clueCount - _emptyCells;
 
         void Commit(BoardCommand command)
         {
