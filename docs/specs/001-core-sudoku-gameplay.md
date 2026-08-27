@@ -604,3 +604,23 @@ stays the authoritative description of what exists.
     crash-shaped drop-off on one OS is otherwise invisible. Cell placements
     batch ten to an event and any other event flushes the batch first, which
     keeps the recorded order the order things happened in.
+
+24. **The eight effects are synthetic placeholders, not the CC0 assets the spec
+    calls for.** The service, the mixer, both mutes, the haptics and every call
+    site are built and working; what is committed under
+    `Assets/_Project/Resources/Audio/` is eight short sine-and-noise envelopes
+    generated programmatically for the branch, so that the whole chain could be
+    heard and reviewed rather than shipped untested behind empty clip slots.
+    They carry no licence and no provenance, and sourcing real CC0 effects is
+    still outstanding - `Assets/_Project/Audio/README.md` says so, and lists
+    what each of the eight slots wants. Nothing in the code changes when they
+    arrive: a missing clip is already a no-op, so they can be replaced one at a
+    time. The clips and the mixer live under `Resources/` rather than the
+    `Game/Audio` folder the spec's layout names, because the interface is built
+    in code with no scene or prefab to hold an asset reference; `Game/Audio`
+    holds the service. Haptics are a native plugin
+    (`Assets/_Project/Plugins/iOS/SudokuHaptics.m`, plus an `AndroidJavaObject`
+    path) because the engine has no cross-platform impact API - `Handheld.Vibrate`
+    is one half-second buzz, which cannot tell a placement from a mistake. That
+    plugin is the one piece of this that a headless check cannot compile; it
+    only builds on a device.

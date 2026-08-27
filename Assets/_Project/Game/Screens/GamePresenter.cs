@@ -3,6 +3,7 @@ using Sudoku.Core.Difficulty;
 using Sudoku.Core.Model;
 using Sudoku.Core.Persistence;
 using Sudoku.Core.Session;
+using Sudoku.Game.Audio;
 using Sudoku.Game.Board;
 using Sudoku.Game.Content;
 using Sudoku.Game.Save;
@@ -25,6 +26,8 @@ namespace Sudoku.Game.Screens
         BoardView _board;
         NumpadView _numpad;
         HudView _hud;
+        IAudioService _audio;
+        GameAudio _sounds;
 
         GameSession _session;
         SaveSlot _slot;
@@ -93,7 +96,8 @@ namespace Sudoku.Game.Screens
         bool IsVisible => _root != null && _root.gameObject.activeInHierarchy;
 
         public void Initialise(PuzzleLibrary library, SaveStore saves, GameSettings settings,
-            RectTransform root, BoardView board, NumpadView numpad, HudView hud)
+            RectTransform root, BoardView board, NumpadView numpad, HudView hud,
+            IAudioService audio)
         {
             _library = library;
             _saves = saves;
@@ -102,6 +106,12 @@ namespace Sudoku.Game.Screens
             _board = board;
             _numpad = numpad;
             _hud = hud;
+            _audio = audio;
+
+            // Almost everything audible is decided from the session's own event
+            // stream rather than from here, so the presenter only has to hand
+            // over each session it deals.
+            if (_audio != null) _sounds = new GameAudio(_audio);
 
             _board.CellTapped += OnCellTapped;
             _numpad.DigitTapped += OnDigitTapped;
@@ -194,6 +204,14 @@ namespace Sudoku.Game.Screens
         {
             _session = session;
             _session.Emitted += OnGameEvent;
+
+            // Attached before Start for the same reason as the announcement
+            // below: the stream is where nearly every sound is decided, so a
+            // listener that joins late misses the puzzle's own opening event.
+            // This is the only path a played session travels - the one in
+            // AbandonWaiting exists purely to say it was dropped, and is
+            // deliberately left silent.
+            if (_sounds != null) _sounds.Follow(_session);
 
             // Announced before Start, so whoever is listening hears the puzzle
             // begin rather than joining it a move late.
@@ -399,10 +417,13 @@ namespace Sudoku.Game.Screens
                     _session.Undo();
                     break;
                 case PadAction.Erase:
-                    if (_selected >= 0) _session.Erase(_selected);
+                    // Erasing is the one move the session does not announce, so
+                    // it is the one move the presenter has to give a voice to.
+                    if (_selected >= 0 && _session.Erase(_selected)) Play(Sfx.Erase);
                     break;
                 case PadAction.Notes:
                     _notesMode = !_notesMode;
+                    Play(Sfx.ButtonTap);
                     break;
                 case PadAction.Hint:
                     TapHint();
@@ -428,8 +449,19 @@ namespace Sudoku.Game.Screens
             }
 
             var revealed = _session.RevealHint(_selected);
-            if (revealed != null)
-                _selected = revealed.CellIndex;
+            if (revealed == null) return;
+
+            _selected = revealed.CellIndex;
+
+            // Revealing is free, so the session says nothing about it. The tap
+            // still has to be answered, or half the gesture is silent.
+            Play(Sfx.ButtonTap);
+        }
+
+        /// <summary>Plays an effect the event stream cannot announce for us.</summary>
+        void Play(Sfx effect)
+        {
+            if (_audio != null) _audio.Play(effect);
         }
 
         void Render()
