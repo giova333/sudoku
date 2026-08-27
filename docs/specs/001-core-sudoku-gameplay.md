@@ -429,12 +429,19 @@ stays the authoritative description of what exists.
    progression banks.
 
 6. **`Sudoku.Game` references `Sudoku.Core`, `UnityEngine.UI`,
-   `Unity.TextMeshPro`, `Unity.InputSystem` and `Unity.InputSystem.ForUI`.**
-   PrimeTween is installed but still unreferenced, because an unresolved
-   assembly-definition reference breaks the whole Unity compile; it is added
-   when code actually uses it, in the motion step. *(Corrected during step 5:
-   this item previously said the Input System was also unreferenced. It has
-   been referenced since the greybox input loop landed.)*
+   `Unity.TextMeshPro`, `Unity.InputSystem`, `Unity.InputSystem.ForUI` and
+   `PrimeTween.Runtime`.** *(Corrected during step 5: this item previously said
+   the Input System was unreferenced. It has been referenced since the greybox
+   input loop landed. Corrected again during step 10: PrimeTween was held back
+   until code actually used it, because an unresolved assembly-definition
+   reference breaks the whole Unity compile - the motion pass is where it was
+   added.)* The assembly is named `PrimeTween.Runtime`, from
+   `com.kyrylokuzyk.primetween@1.3.3`, and it is declared in two places that
+   must agree: the `references` list in `Assets/_Project/Game/Sudoku.Game.asmdef`
+   and a matching `<Reference Include="$(UnityScriptAssemblies)/PrimeTween.Runtime.dll" />`
+   in `tools/Sudoku.Game.Build/Sudoku.Game.Build.csproj`. Miss the second and
+   `tools/check-game.sh` fails while the editor is happy; miss the first and the
+   reverse.
 
 7. **The bundle identifier is `com.hladunoleksandr.sudoku`** on Android and
    iOS. It is permanent once published. *(Corrected during step 5: this item
@@ -580,8 +587,10 @@ stays the authoritative description of what exists.
     interstitial, results card - each taking a continuation, because the two
     still empty are both asynchronous. A null stage is skipped, so today
     completion reaches the results card immediately while the seam is a real,
-    named, findable place rather than a comment. Ticket #10 fills the first
-    stage; the second is reserved and deliberately never assigned. Heart
+    named, findable place rather than a comment. *(Corrected during step 10:
+    the first stage is now the board cascade, so completion no longer reaches
+    the results card immediately. The second is still reserved and still
+    deliberately unassigned.)* Heart
     depletion does not go through the flow: there is no cascade to play, and an
     ad after a loss is the one place an interstitial should not be.
 
@@ -728,3 +737,71 @@ stays the authoritative description of what exists.
     the home indicator, and a letterboxed background reads as a bug - while
     every control hangs off the safe rect. No `ProjectSettings` change was
     needed; `androidRenderOutsideSafeArea: 1` is the setting this design wants.
+
+32. **Motion is one table of numbers behind one boolean.**
+    `Game/Motion/Motions.cs` holds every duration, easing curve and travel
+    distance in the game, and every one of them leaves through `Seconds()`,
+    `Travel()` or `Overshoot` - so damping the whole game for Reduce Motion is
+    a single field rather than a sweep through a dozen call sites. Damped, the
+    overshoot curve becomes an ordinary deceleration that never passes its
+    target, durations keep 55% of their length and travel keeps 30% of its
+    distance; movement is shortened rather than removed, because a change with
+    no transition at all is harder to follow, not easier.
+
+    The press-depress arrives exactly where step 9 left room for it: the
+    composition root assigns the static `ChunkyBox.PressAnimator` and the tween
+    drives `ShadowDepth`. No view, screen or button call site changed. Screen
+    transitions are wired once to `Navigator.Navigated` for the same reason a
+    screen registers itself rather than being wired in - a screen added later
+    gets its entrance for free. Element entrances stagger the chunky boxes that
+    sit *directly* on a screen root, which is the whole selection rule: a
+    screen's own buttons and cards hang off its root and so arrive in sequence,
+    while the board, numpad and status strip are containers rather than boxes,
+    so the game screen swells into place and nothing inside it shuffles.
+
+    Board reactions - a cell popping on placement, shaking on a mistake, a
+    finished 3x3 box swelling - are a listener on `GameSession.Emitted`,
+    exactly as the audio is and for the same reason: gameplay never learns that
+    animation exists. The one movement the stream cannot carry is an edit to a
+    clue, because `GameSession.Place` *rejects* it and a rejected move announces
+    nothing; the presenter that was told no calls `BoardMotion.Refused`. "Is
+    this 3x3 box finished" now has one implementation, `Game/Board/BoardBoxes.cs`,
+    which both the audio and the motion ask - two copies of that rule could
+    drift apart. The completion cascade fills `CompletionFlow.BoardCascade`,
+    stage one; the interstitial seam beside it remains deliberately unassigned.
+
+    Zero allocation is a real constraint rather than a slogan: PrimeTween's
+    tween pool is sized once in `Motions.Install()` for the eighty-one cells the
+    cascade puts in the air on one frame, and every callback is a `static`
+    lambda over a target the tween already holds, which the compiler caches in a
+    field. There is no `<>c__DisplayClass` in `Motions` - two cached delegate
+    singletons and nothing else - so a tap allocates nothing at all.
+
+33. **Reduce Motion can be read from Android and cannot be read from iOS.**
+    This is worth stating precisely, because it is the one acceptance criterion
+    the platform does not fully allow.
+
+    On **Android** the accessibility setting "Remove animations" writes zero
+    into the global animation scales, and `animator_duration_scale` and
+    `transition_animation_scale` are ordinary values in `Settings.Global` that
+    any app may read through JNI - no plugin, no permission, no manifest entry.
+    `Game/Motion/ReduceMotion.cs` reads them, and it is a genuine read of the
+    OS setting.
+
+    On **iOS and tvOS** it cannot be read. The setting exists as
+    `UIAccessibilityIsReduceMotionEnabled()`, but Unity 6000.5.10f1 does not
+    surface it: `UnityEngine.Accessibility.AccessibilitySettings` exposes
+    exactly `fontScale`, `isBoldTextEnabled` and `isClosedCaptioningEnabled`,
+    plus `AssistiveSupport.isScreenReaderEnabled`, and reduced motion is not
+    among them. Reaching it means an Objective-C plugin, which cannot be
+    compiled or verified without a device build - and the project already
+    carries one such file (item 24). So none was added.
+
+    What ships instead is honest on both platforms: a **Reduce motion row in
+    Settings**, whose stored default is whatever the OS answered. An Android
+    player who has asked their system for less motion is honoured without ever
+    finding the row; an iOS player finds the row and it is the whole of the
+    control. Once the switch is touched, the player's answer is the answer -
+    silently overruling it at the next launch would make the switch look
+    broken. The day the iOS read becomes available, it changes one method
+    (`ReduceMotion.ReadableFromOs` and its reader) and nothing else.

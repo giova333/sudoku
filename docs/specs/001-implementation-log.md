@@ -27,7 +27,7 @@ of that spec's build order. Steps 1-4 landed on `main` before this branch.
 | 7 | Results card, game over, and the consumable seam | #1, #2 | Done — `ticket/07-results` |
 | 8 | Typography and theming | #4 | Done — `ticket/08-theming` (theme system complete; TMP migration and font atlases outstanding, see addendum 27) |
 | 9 | Chunky-playful skin pass | #8 | Done — `ticket/09-skin` |
-| 10 | Motion and juice | #9 | |
+| 10 | Motion and juice | #9 | Done — `ticket/10-motion` (Reduce Motion is read from the OS on Android only; see addendum 33) |
 | 11 | Audio and haptics | #4 | Done — `ticket/11-audio` (clips are placeholders; CC0 sourcing outstanding) |
 | 12 | Copy voice table | #7 | Done — `ticket/12-copy` |
 | 13 | Analytics interface and event wiring | #1, #4 | Done — `ticket/13-analytics` |

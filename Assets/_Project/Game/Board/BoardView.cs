@@ -67,6 +67,14 @@ namespace Sudoku.Game.Board
             return view;
         }
 
+        /// <summary>
+        /// One of the eighty-one cells, so that something outside the board can
+        /// move it. <see cref="Render"/> repaints; nothing in here animates, and
+        /// <see cref="BoardMotion"/> is what does - it needs a transform to
+        /// tween and this is the whole of what it is handed.
+        /// </summary>
+        public CellView CellAt(int index) => _cells[index];
+
         static float SeparatorsBefore(int line, float thin, float thick)
         {
             var total = 0f;

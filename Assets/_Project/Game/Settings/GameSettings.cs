@@ -31,6 +31,8 @@ namespace Sudoku.Game.Settings
             HighlightMistakes = Declare(new Preference<bool>(store, "highlightMistakes", true));
             AutoRemoveNotes = Declare(new Preference<bool>(store, "autoRemoveNotes", true));
             TimerVisible = Declare(new Preference<bool>(store, "timerVisible", true));
+            ReduceMotion = Declare(new Preference<bool>(store, "reduceMotion",
+                Motion.ReduceMotion.PreferredByTheOs));
             SoundEnabled = Declare(new Preference<bool>(store, "sound", true));
             HapticsEnabled = Declare(new Preference<bool>(store, "haptics", true));
             Theme = Declare(new Preference<ThemeChoice>(store, "theme", ThemeChoice.Light));
@@ -49,6 +51,21 @@ namespace Sudoku.Game.Settings
         /// <summary>Whether the clock is shown. It always runs - hiding it removes the
         /// pressure, not the record.</summary>
         public Preference<bool> TimerVisible { get; }
+
+        /// <summary>
+        /// Whether the bouncy easing is damped and the durations shortened.
+        ///
+        /// The only preference whose default is not a constant: it starts at
+        /// whatever the device has already asked for, so a player who has turned
+        /// Reduce Motion on system-wide never has to find this row. Once they
+        /// touch it their answer is the answer - a switch that is silently
+        /// overruled at the next launch is a broken switch.
+        ///
+        /// <see cref="Sudoku.Game.Motion.ReduceMotion"/> is honest about where
+        /// the device can and cannot be asked; on the platforms where it cannot,
+        /// this row is the whole of the control.
+        /// </summary>
+        public Preference<bool> ReduceMotion { get; }
 
         /// <summary>Sound and haptics mute independently, because the reasons to silence
         /// one are not the reasons to silence the other. Ticket #11 gives them something

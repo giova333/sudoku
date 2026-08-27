@@ -10,15 +10,16 @@ namespace Sudoku.Game.Session
     ///   2. <see cref="Interstitial"/> - RESERVED. Nothing occupies it.
     ///   3. <see cref="ResultsCard"/>  - the payoff the player is waiting for.
     ///
-    /// Every stage is optional and a null one is skipped, so the flow already
-    /// runs correctly with only the third filled in - which is exactly the state
-    /// it ships in for this milestone.
+    /// Every stage is optional and a null one is skipped, so the flow ran
+    /// correctly with only the third filled in, which is how it shipped before
+    /// there was a cascade to put in the first.
     ///
     /// The middle stage exists now, empty, on purpose. An interstitial ad is
     /// added later by assigning one callback here; the alternative - discovering
     /// at monetization time that completion is a single hard-wired call from
     /// gameplay to a screen - is a rewrite of the flow under commercial
-    /// pressure. Motion (ticket #10) fills the first stage the same way.
+    /// pressure. Motion (ticket #10) filled the first stage the same way, and
+    /// nothing in here changed to let it.
     ///
     /// Stages take a continuation rather than returning, because both of the
     /// ones still empty are asynchronous: an animation finishes on a later
@@ -28,8 +29,8 @@ namespace Sudoku.Game.Session
     {
         /// <summary>
         /// Stage 1. The board's completion animation, which calls its
-        /// continuation when the sweep has finished. Ticket #10 fills this in;
-        /// until then completion goes straight on to the next stage.
+        /// continuation when the sweep has finished. Assigned by the composition
+        /// root from <see cref="Sudoku.Game.Screens.GamePresenter.Cascade"/>.
         /// </summary>
         public Action<Action> BoardCascade;
 

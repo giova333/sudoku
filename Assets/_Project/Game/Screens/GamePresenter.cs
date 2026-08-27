@@ -28,6 +28,7 @@ namespace Sudoku.Game.Screens
         HudView _hud;
         IAudioService _audio;
         GameAudio _sounds;
+        BoardMotion _motion;
 
         GameSession _session;
         SaveSlot _slot;
@@ -112,6 +113,12 @@ namespace Sudoku.Game.Screens
             // stream rather than from here, so the presenter only has to hand
             // over each session it deals.
             if (_audio != null) _sounds = new GameAudio(_audio);
+
+            // The board moves off the same stream, for the same reason, and
+            // needs no wiring from outside: how much it moves is the motion
+            // layer's business, and a player who has asked for less of it has
+            // already been answered before this is built.
+            _motion = new BoardMotion(_board);
 
             _board.CellTapped += OnCellTapped;
             _numpad.DigitTapped += OnDigitTapped;
@@ -212,6 +219,7 @@ namespace Sudoku.Game.Screens
             // AbandonWaiting exists purely to say it was dropped, and is
             // deliberately left silent.
             if (_sounds != null) _sounds.Follow(_session);
+            _motion.Follow(_session);
 
             // Announced before Start, so whoever is listening hears the puzzle
             // begin rather than joining it a move late.
@@ -389,8 +397,18 @@ namespace Sudoku.Game.Screens
         {
             if (_selected < 0) return;
 
-            if (_notesMode) _session.ToggleNote(_selected, digit);
-            else _session.Place(_selected, digit);
+            if (_notesMode)
+            {
+                _session.ToggleNote(_selected, digit);
+            }
+            else if (!_session.Place(_selected, digit) && _puzzle.IsGiven(_selected))
+            {
+                // The one refusal the player can provoke on purpose and would
+                // otherwise get no answer to. Every other reason Place says no -
+                // the same digit twice, a run already over - is either invisible
+                // or already on screen.
+                _motion.Refused(_selected);
+            }
 
             Save();
             Render();
@@ -457,6 +475,14 @@ namespace Sudoku.Game.Screens
             // still has to be answered, or half the gesture is silent.
             Play(Sfx.ButtonTap);
         }
+
+        /// <summary>
+        /// Stage one of the completion flow: the sweep across the finished
+        /// board, calling back when it has crossed. The composition root hands
+        /// this to <see cref="Sudoku.Game.Session.CompletionFlow.BoardCascade"/>
+        /// - the presenter neither runs the flow nor knows what comes after it.
+        /// </summary>
+        public void Cascade(Action done) => _motion.Cascade(done);
 
         /// <summary>Plays an effect the event stream cannot announce for us.</summary>
         void Play(Sfx effect)
