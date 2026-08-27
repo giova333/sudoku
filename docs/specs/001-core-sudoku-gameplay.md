@@ -456,3 +456,14 @@ stays the authoritative description of what exists.
     `Assets/_Project/Game` against Unity's own managed assemblies in about a
     second. It cannot run anything - there is no engine - but it catches type
     and API errors without an editor round-trip.
+
+12. **The test sources are compile-checked against Unity's own NUnit.** The
+    fast runner uses a NuGet NUnit that is newer than the one Unity ships
+    (`com.unity.ext.nunit` 2.1.0), and the two diverged silently: `Is.AnyOf`
+    compiled and passed in `tools/test.sh` while failing to compile in the
+    editor - and because Unity blocks Play mode on any compile error, including
+    one in a test assembly, that stopped the game running entirely.
+    `tools/test.sh` now builds the same test sources against Unity's actual
+    `nunit.framework.dll` before running anything, so that class of divergence
+    fails in the normal loop. `tools/check.sh` runs everything that can be
+    verified without opening the editor.

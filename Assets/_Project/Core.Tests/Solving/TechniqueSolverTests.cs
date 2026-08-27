@@ -179,7 +179,7 @@ namespace Sudoku.Core.Tests.Solving
 
             Assert.That(step, Is.Not.Null);
             Assert.That(step.Technique, Is.EqualTo(Technique.LockedCandidates));
-            Assert.That(step.Digit, Is.AnyOf(7, 8, 9));
+            Assert.That(new[] { 7, 8, 9 }, Contains.Item(step.Digit));
             Assert.That(step.Eliminations, Is.Not.Null.And.Not.Empty);
 
             foreach (var e in step.Eliminations)
