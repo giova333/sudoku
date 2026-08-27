@@ -25,6 +25,7 @@ namespace Sudoku.Core.Session
         readonly Puzzle _puzzle;
         readonly RulesConfig _rules;
         readonly ConstraintSet _constraints;
+        readonly IConsumableService _consumables;
 
         readonly int[] _values = new int[Board.CellCount];
 
@@ -43,17 +44,38 @@ namespace Sudoku.Core.Session
             : this(puzzle, rules, ConstraintSet.Classic) { }
 
         public GameSession(Puzzle puzzle, RulesConfig rules, ConstraintSet constraints)
+            : this(puzzle, rules, constraints, null) { }
+
+        /// <summary>
+        /// Plays a puzzle against a supplied consumable service. Passing null
+        /// gives the session a <see cref="LocalConsumables"/> of its own, which
+        /// is what every caller wants until something is actually selling
+        /// hearts.
+        /// </summary>
+        public GameSession(Puzzle puzzle, RulesConfig rules, ConstraintSet constraints,
+            IConsumableService consumables)
         {
             _puzzle = puzzle ?? throw new ArgumentNullException(nameof(puzzle));
             _rules = rules ?? throw new ArgumentNullException(nameof(rules));
             _constraints = constraints ?? throw new ArgumentNullException(nameof(constraints));
+            _consumables = consumables ?? new LocalConsumables();
 
             for (var i = 0; i < Board.CellCount; i++)
                 _values[i] = puzzle.ClueAt(i);
 
-            HeartsRemaining = rules.Hearts;
-            HintsRemaining = rules.Hints;
+            Stock();
             _emptyCells = CountEmpty();
+        }
+
+        /// <summary>
+        /// Puts the puzzle's allowance in the player's hands. Dealing is not
+        /// spending and not a reward, so it goes through
+        /// <see cref="IConsumableService.Reset"/> rather than either of them.
+        /// </summary>
+        void Stock()
+        {
+            _consumables.Reset(Consumable.Heart, _rules.Hearts);
+            _consumables.Reset(Consumable.Hint, _rules.Hints);
         }
 
         /// <summary>
@@ -96,8 +118,8 @@ namespace Sudoku.Core.Session
                 _history.RemoveAt(0);
 
             ElapsedSeconds = snapshot.ElapsedSeconds;
-            HeartsRemaining = snapshot.HeartsRemaining;
-            HintsRemaining = snapshot.HintsRemaining;
+            _consumables.Reset(Consumable.Heart, snapshot.HeartsRemaining);
+            _consumables.Reset(Consumable.Hint, snapshot.HintsRemaining);
             HintsUsed = snapshot.HintsUsed;
             MistakeCount = snapshot.MistakeCount;
             Status = snapshot.Status;
@@ -160,6 +182,29 @@ namespace Sudoku.Core.Session
         }
 
         /// <summary>
+        /// The way back into a run that ended out of hearts. It asks
+        /// <see cref="Consumables"/> for more and resumes only if any arrived,
+        /// so the whole of "can the player carry on" is one question put to the
+        /// service that will one day be backed by a rewarded ad. Returns false
+        /// today, because nothing is selling hearts yet.
+        ///
+        /// Nothing is emitted: the run is the same run, and telling analytics a
+        /// puzzle started twice would corrupt every funnel built on it.
+        /// </summary>
+        public bool ContinueWithMoreHearts(int hearts = 1)
+        {
+            if (Status != SessionStatus.Failed)
+                return false;
+            if (hearts <= 0)
+                return false;
+            if (_consumables.Refill(Consumable.Heart, hearts) <= 0)
+                return false;
+
+            Status = SessionStatus.InProgress;
+            return true;
+        }
+
+        /// <summary>
         /// Puts the same puzzle back to its clue state: the player's entries,
         /// their notes, the undo history, the timer, hearts, mistakes and hints
         /// all return to where they stood at the first tap.
@@ -186,10 +231,9 @@ namespace Sudoku.Core.Session
 
             Status = SessionStatus.InProgress;
             ElapsedSeconds = 0f;
-            HeartsRemaining = _rules.Hearts;
             MistakeCount = 0;
-            HintsRemaining = _rules.Hints;
             HintsUsed = 0;
+            Stock();
             _emptyCells = CountEmpty();
 
             // The puzzle is being played from the beginning again, so anyone who
@@ -239,8 +283,19 @@ namespace Sudoku.Core.Session
 
         public void Resume() => IsPaused = false;
 
-        /// <summary>Wrong placements the player may still make this puzzle.</summary>
-        public int HeartsRemaining { get; private set; }
+        /// <summary>
+        /// Who holds this session's hearts and hints. Exposed so that a screen
+        /// offering the player more of either asks the same service the rules
+        /// spend from, rather than a second one that could disagree with it.
+        /// </summary>
+        public IConsumableService Consumables => _consumables;
+
+        /// <summary>
+        /// Wrong placements the player may still make this puzzle. Read straight
+        /// off <see cref="Consumables"/> - the session keeps no copy, so there is
+        /// no second number for gameplay to reach for.
+        /// </summary>
+        public int HeartsRemaining => _consumables.Remaining(Consumable.Heart);
 
         /// <summary>
         /// Every wrong placement the player has made, including repeats that
@@ -318,8 +373,12 @@ namespace Sudoku.Core.Session
             if (!correct)
             {
                 MistakeCount++;
-                if (_rules.MistakeLimitEnabled && HeartsRemaining > 0)
-                    HeartsRemaining--;
+
+                // The only place in the game a heart is ever lost, and it is a
+                // request rather than a decrement: whoever owns the hearts
+                // decides whether one is actually taken.
+                if (_rules.MistakeLimitEnabled)
+                    _consumables.Spend(Consumable.Heart);
 
                 Emit(GameEventKind.MistakeMade, index, digit, false);
 
@@ -402,8 +461,12 @@ namespace Sudoku.Core.Session
         /// <summary>Actions currently available to undo.</summary>
         public int UndoDepth => _history.Count;
 
-        /// <summary>Hints the player may still take this puzzle.</summary>
-        public int HintsRemaining { get; private set; }
+        /// <summary>
+        /// Hints the player may still take this puzzle. Like
+        /// <see cref="HeartsRemaining"/>, this is the service's number and not a
+        /// copy of it.
+        /// </summary>
+        public int HintsRemaining => _consumables.Remaining(Consumable.Hint);
 
         /// <summary>
         /// Hints taken. A solve with any hints is not a perfect solve, so this
@@ -580,9 +643,14 @@ namespace Sudoku.Core.Session
         /// </summary>
         bool ApplyHint(Hint hint)
         {
-            if (!IsActive || HintsRemaining <= 0)
+            if (!IsActive)
                 return false;
             if (_values[hint.CellIndex] == hint.Digit)
+                return false;
+
+            // Charged before the board moves, and by asking rather than
+            // decrementing: a refused hint leaves the cell exactly as it was.
+            if (!_consumables.Spend(Consumable.Hint))
                 return false;
 
             var edits = new List<BoardEdit>
@@ -604,7 +672,6 @@ namespace Sudoku.Core.Session
 
             Commit(new BoardCommand(BoardCommandKind.Hint, hint.CellIndex, edits));
 
-            HintsRemaining--;
             HintsUsed++;
             _emptyCells = CountEmpty();
             Emit(GameEventKind.HintUsed, hint.CellIndex, hint.Digit, true);

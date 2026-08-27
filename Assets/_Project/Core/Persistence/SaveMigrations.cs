@@ -12,6 +12,8 @@ namespace Sudoku.Core.Persistence
         {
             if (fromVersion < 2)
                 ToVersion2(root);
+            if (fromVersion < 3)
+                ToVersion3(root);
 
             root.Set("schemaVersion", JsonValue.Number(SaveSerializer.CurrentSchemaVersion));
             return root;
@@ -35,6 +37,18 @@ namespace Sudoku.Core.Persistence
 
             if (root.Member("progress") == null)
                 root.Set("progress", JsonValue.Array());
+        }
+
+        /// <summary>
+        /// Version 3 records the best time per difficulty. Nothing was tracked
+        /// before it, so an older save arrives with no records rather than with
+        /// invented ones - the first solve after the update sets the first
+        /// record, which is the honest outcome.
+        /// </summary>
+        static void ToVersion3(JsonValue root)
+        {
+            if (root.Member("best") == null)
+                root.Set("best", JsonValue.Array());
         }
     }
 }

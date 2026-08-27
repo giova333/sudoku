@@ -16,6 +16,7 @@ namespace Sudoku.Core.Persistence
     {
         readonly List<SaveSlot> _slots = new List<SaveSlot>();
         readonly List<BankProgress> _progress = new List<BankProgress>();
+        readonly List<BestTime> _bestTimes = new List<BestTime>();
 
         /// <summary>The schema the payload was written against. See <see cref="SaveSerializer"/>.</summary>
         public int SchemaVersion { get; set; } = SaveSerializer.CurrentSchemaVersion;
@@ -23,6 +24,8 @@ namespace Sudoku.Core.Persistence
         public IReadOnlyList<SaveSlot> Slots => _slots;
 
         public IReadOnlyList<BankProgress> Progress => _progress;
+
+        public IReadOnlyList<BestTime> BestTimes => _bestTimes;
 
         public SaveSlot Slot(string slotId)
         {
@@ -110,5 +113,29 @@ namespace Sudoku.Core.Persistence
             _progress.Add(created);
             return created;
         }
+
+        /// <summary>
+        /// This tier's record, created on first ask so a caller never has to
+        /// decide whether one already exists. An unset record reads as zero
+        /// seconds, which is how "never finished" is spelled.
+        /// </summary>
+        public BestTime BestTimeFor(DifficultyTier tier)
+        {
+            foreach (var best in _bestTimes)
+                if (best.Tier == tier)
+                    return best;
+
+            var created = new BestTime(tier);
+            _bestTimes.Add(created);
+            return created;
+        }
+
+        /// <summary>
+        /// Counts a finished solve against this tier's record. Returns true when
+        /// it is a new best - the caller does not have to read the old number
+        /// first and then compare, which is where an off-by-one lives.
+        /// </summary>
+        public bool RecordBestTime(DifficultyTier tier, float seconds) =>
+            BestTimeFor(tier).Record(seconds);
     }
 }

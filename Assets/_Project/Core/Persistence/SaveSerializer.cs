@@ -24,9 +24,10 @@ namespace Sudoku.Core.Persistence
         /// <summary>
         /// Bumped whenever the payload's shape changes. Version 1 was the
         /// greybox single-slot format; version 2 gives every difficulty a slot
-        /// and absorbs played-puzzle tracking.
+        /// and absorbs played-puzzle tracking; version 3 adds the best time per
+        /// difficulty.
         /// </summary>
-        public const int CurrentSchemaVersion = 2;
+        public const int CurrentSchemaVersion = 3;
 
         // Five ints per edit: cell, value before and after, notes before and after.
         const int IntsPerEdit = 5;
@@ -51,6 +52,18 @@ namespace Sudoku.Core.Persistence
                 progress.Add(item);
             }
             root.Set("progress", progress);
+
+            var best = JsonValue.Array();
+            foreach (var record in data.BestTimes)
+            {
+                if (!record.IsSet) continue;
+
+                var item = JsonValue.Object();
+                item.Set("tier", JsonValue.Number((int)record.Tier));
+                item.Set("seconds", JsonValue.Number(record.Seconds));
+                best.Add(item);
+            }
+            root.Set("best", best);
 
             var sb = new StringBuilder(2048);
             root.Write(sb);
@@ -88,6 +101,12 @@ namespace Sudoku.Core.Persistence
                     entry.Played = item.IntOr("played", 0);
                     entry.Offset = item.IntOr("offset", -1);
                 }
+
+            var best = root.Member("best");
+            if (best != null)
+                foreach (var item in best.Items)
+                    data.BestTimeFor((DifficultyTier)item.IntOr("tier", 0)).Seconds =
+                        item.FloatOr("seconds", 0f);
 
             return data;
         }

@@ -56,5 +56,22 @@ namespace Sudoku.Core.Tests.Fixtures
     ]
   }
 }";
+
+        /// <summary>
+        /// A schema-2 save: slots and bank progress, but no best times, because
+        /// nothing tracked them yet. Written with no slots on purpose - the slot
+        /// shape is already covered by the schema-1 payload, and what this one
+        /// has to prove is that a payload predating records loads without
+        /// inventing any.
+        ///
+        /// The player has been dealt four Hard puzzles from offset 11.
+        /// </summary>
+        public const string SchemaVersionTwo = @"{
+  ""schemaVersion"": 2,
+  ""slots"": [],
+  ""progress"": [
+    { ""tier"": 2, ""played"": 4, ""offset"": 11 }
+  ]
+}";
     }
 }

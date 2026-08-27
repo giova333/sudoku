@@ -2,6 +2,7 @@ using Sudoku.Game.Board;
 using Sudoku.Game.Content;
 using Sudoku.Game.Save;
 using Sudoku.Game.Screens;
+using Sudoku.Game.Session;
 using Sudoku.Game.Settings;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -65,6 +66,8 @@ namespace Sudoku.Game.Bootstrap
             var pause = PauseView.Create(canvas.transform);
             var settingsScreen = SettingsView.Create(canvas.transform, settings);
             var resume = ResumePromptView.Create(canvas.transform);
+            var results = ResultsView.Create(canvas.transform);
+            var gameOver = GameOverView.Create(canvas.transform);
 
             navigator.Register(home);
             navigator.Register(difficulty);
@@ -72,6 +75,8 @@ namespace Sudoku.Game.Bootstrap
             navigator.Register(pause);
             navigator.Register(settingsScreen);
             navigator.Register(resume);
+            navigator.Register(results);
+            navigator.Register(gameOver);
 
             // Continue is answered by the save file, never by whether a session
             // happens to be in memory: a puzzle left mid-solve is still there
@@ -143,6 +148,60 @@ namespace Sudoku.Game.Bootstrap
             // The session is only suspended, never dropped, so Home finds it
             // waiting under Continue.
             pause.HomeTapped += navigator.ResetTo<HomeView>;
+
+            // Finishing a puzzle is a flow, not a screen change. The stages run
+            // in order and a stage nobody has filled in is skipped, so today
+            // this reaches the results card immediately - see CompletionFlow for
+            // what the empty stages are reserved for.
+            var completion = new CompletionFlow
+            {
+                // BoardCascade: ticket #10 assigns the completion animation.
+                // Interstitial: RESERVED for an interstitial ad. Deliberately
+                // left unassigned - there is no ad SDK in this milestone, and
+                // the seam has to exist before there is something to put in it.
+                ResultsCard = navigator.Go<ResultsView>
+            };
+
+            game.Solved += result =>
+            {
+                results.Show(result);
+                completion.Run();
+            };
+
+            // Back from the results card pops it and leaves the player on the
+            // puzzle that was just dealt, with Home still under it.
+            results.NextTapped += () =>
+            {
+                game.StartPuzzle(results.Tier);
+                navigator.Back();
+            };
+            results.HomeTapped += navigator.ResetTo<HomeView>;
+            // results.Reaction: ticket #12 assigns the line the card says about
+            // the solve, drawn from its reaction pools. Left unset here so the
+            // card stays silent rather than repeating one hardcoded joke.
+
+            // Losing gets its own screen rather than a banner over the board:
+            // it is an outcome, and it is offered the same way out as a win.
+            game.OutOfHearts += (tier, mistakes) =>
+            {
+                gameOver.Show(tier, mistakes);
+                navigator.Go<GameOverView>();
+            };
+
+            // The offer and the answer both come from the session's consumable
+            // service, so the day one is backed by a rewarded ad, neither this
+            // wiring nor the screen changes.
+            gameOver.RefillAvailable = () => game.CanRefillHearts;
+            gameOver.MoreHeartsTapped += () =>
+            {
+                if (game.ContinueWithMoreHearts()) navigator.Back();
+            };
+            gameOver.RestartTapped += () =>
+            {
+                game.Restart();
+                navigator.Back();
+            };
+            gameOver.HomeTapped += navigator.ResetTo<HomeView>;
 
             navigator.Go<HomeView>();
         }
