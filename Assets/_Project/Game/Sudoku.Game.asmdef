@@ -1,0 +1,20 @@
+{
+    "name": "Sudoku.Game",
+    "rootNamespace": "Sudoku.Game",
+    "references": [
+        "Sudoku.Core",
+        "UnityEngine.UI",
+        "Unity.TextMeshPro",
+        "Unity.InputSystem",
+        "PrimeTween"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

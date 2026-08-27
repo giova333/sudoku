@@ -1,0 +1,19 @@
+{
+    "name": "Sudoku.Editor",
+    "rootNamespace": "Sudoku.Editor",
+    "references": [
+        "Sudoku.Core",
+        "Sudoku.Game"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
